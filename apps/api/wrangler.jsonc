@@ -1,0 +1,13 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "flashstock-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-11-16",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "flashstock-db",
+			"database_id": "90b77993-51a2-4b83-834e-4966c5c06e4d"
+		}
+	]
+}
