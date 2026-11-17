@@ -310,3 +310,33 @@ export const inventoryMovements = sqliteTable(
     index('idx_inventory_movements_created').on(table.createdAt)
   ]
 )
+
+// ==========================================
+// 14. FLASH SALES
+// ==========================================
+
+export const flashSales = sqliteTable(
+  'flash_sales',
+  {
+    id: text('id').primaryKey(),
+    productId: text('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+    discountPrice: integer('discount_price').notNull(),
+    saleStockLimit: integer('sale_stock_limit').notNull(),
+    allocatedStock: integer('allocated_stock').notNull().default(0),
+    startTime: text('start_time').notNull(),
+    endTime: text('end_time').notNull(),
+    status: text('status', {
+      enum: ['draft', 'active', 'ended', 'cancelled']
+    }).notNull().default('draft'),
+    createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+    updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`)
+  },
+  (table) => [
+    index('idx_flash_sales_product').on(table.productId),
+    index('idx_flash_sales_status').on(table.status),
+    check('flash_sales_discount_check', sql`${table.discountPrice} >= 0`),
+    check('flash_sales_stock_limit_check', sql`${table.saleStockLimit} > 0`),
+    check('flash_sales_allocated_check', sql`${table.allocatedStock} >= 0`),
+    check('flash_sales_quota_check', sql`${table.allocatedStock} <= ${table.saleStockLimit}`)
+  ]
+)

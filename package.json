@@ -1,10 +1,12 @@
 {
   "name": "flashstock",
   "version": "1.0.0",
-  "description": "",
+  "description": "FlashStock full-stack e-commerce and concurrency-safe inventory platform",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm --prefix apps/api test",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev"
   },
   "keywords": [],
   "author": "",
