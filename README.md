@@ -1,32 +1,37 @@
-# FlashStock
+# ⚡ FlashStock
 
 ### High-Concurrency E-Commerce & Inventory Management Platform
 
 FlashStock is a full-stack e-commerce and inventory management platform designed to handle high-demand product purchases while maintaining inventory consistency.
 
-The project's primary engineering challenge is preventing **overselling during concurrent purchase attempts** — ensuring that multiple customers cannot successfully purchase the same limited-stock item beyond the available quantity.
+Its primary engineering challenge is preventing **overselling during concurrent purchase attempts** — ensuring that multiple customers cannot successfully purchase limited-stock products beyond the available quantity.
 
-> **Project Status:** 🚧 Under Development
+> **Project Status:** 🚧 Under Development  
+> **Development Progress:** Day 02
 
 ---
 
-## Project Vision
+## 🎯 Project Vision
 
-Traditional e-commerce systems can experience inventory inconsistencies when many customers attempt to purchase limited-stock products simultaneously.
+Traditional e-commerce systems can experience inventory inconsistencies when multiple customers attempt to purchase limited-stock products simultaneously.
 
-FlashStock aims to address this challenge through:
+FlashStock is designed to address this challenge through:
 
 - Concurrency-safe inventory reservations.
 - Atomic stock management.
-- Reservation expiration and stock release.
+- Temporary reservations with expiration.
 - Idempotent checkout operations.
 - Payment simulation.
 - Inventory movement tracking.
+- Role-based access control.
 - Administrative inventory monitoring.
+- Sales and inventory analytics.
 
-The goal is to build a practical, production-style system that demonstrates full-stack development and backend engineering concepts.
+The objective is to build a practical, production-style application demonstrating full-stack development, backend engineering, database design, and concurrency management.
 
-## Technology Stack
+---
+
+## 🛠️ Technology Stack
 
 | Layer | Technologies |
 |---|---|
@@ -37,58 +42,117 @@ The goal is to build a practical, production-style system that demonstrates full
 | Database | Cloudflare D1 (SQLite) |
 | ORM | Drizzle ORM |
 | Validation | Zod |
+| Testing | Vitest |
 | Version Control | Git, GitHub |
-| Deployment | Cloudflare |
+| Deployment Target | Cloudflare |
 
-## Architecture
+---
+
+## 🏗️ Architecture
+
+FlashStock follows a modular monolith architecture.
 
 ```text
-                 FRONTEND
-              React + TypeScript
-                     |
-                     | HTTPS / REST API
-                     |
-                     v
-              CLOUDFLARE WORKERS
-                     |
-                     v
+                 CUSTOMER
+                    |
+                    v
+             REACT FRONTEND
+            React + TypeScript
+                    |
+                    | HTTPS / REST API
+                    |
+                    v
+            CLOUDFLARE WORKERS
+                    |
+                    v
                   HONO
-                API ROUTES
-                     |
-                     v
-             APPLICATION LOGIC
-                     |
-                     v
-                DRIZZLE ORM
-                     |
-                     v
+               API ROUTES
+                    |
+                    v
+            APPLICATION SERVICES
+                    |
+          +---------+---------+
+          |         |         |
+          v         v         v
+       AUTH     INVENTORY   CHECKOUT
+          |         |         |
+          +---------+---------+
+                    |
+                    v
+               DRIZZLE ORM
+                    |
+                    v
               CLOUDFLARE D1
                   SQLite
 ```
 
-The application follows a modular monolith architecture, separating routes, services, repositories, validation, and database access.
+### Backend Structure
 
-## Core Features
+The backend separates application responsibilities into:
 
-### Customer Features
+- **Routes:** HTTP endpoints and request handling.
+- **Middleware:** Authentication, authorization and rate limiting.
+- **Services:** Core business logic.
+- **Validators:** Request validation.
+- **Types:** Shared TypeScript definitions.
+- **Database:** Schema, migrations and database access.
+
+---
+
+## 🚀 Core Features
+
+### 1. Customer Application
+
+The customer-facing application includes the foundation for:
+
 - User registration and authentication.
-- Product browsing and searching.
+- Product browsing.
+- Product search and filtering.
+- Product detail pages.
 - Shopping cart management.
-- Checkout and order placement.
+- Checkout.
+- Order confirmation.
 - Order history.
 - Simulated payment processing.
 
-### Inventory Management
-- Real-time stock tracking.
-- Available and reserved stock separation.
-- Temporary inventory reservations.
-- Automatic reservation expiration.
+### 2. Authentication & Security
+
+Backend authentication functionality includes:
+
+- User registration.
+- User login and logout.
+- Password hashing.
+- Session management.
+- Cookie-based authentication.
+- Customer and administrator roles.
+- Authentication middleware.
+- Administrator authorization middleware.
+- Rate limiting for sensitive requests.
+
+### 3. Inventory Management
+
+FlashStock maintains a distinction between physical stock and reserved stock.
+
+Important inventory values:
+
+```text
+Available Stock = On-Hand Stock - Reserved Stock
+```
+
+The inventory system includes functionality for:
+
+- Stock tracking.
+- Reserved stock management.
+- Available stock calculations.
+- Inventory adjustments.
 - Inventory movement history.
+- Temporary stock reservations.
 
-### High-Concurrency Checkout
-The central feature of FlashStock is its inventory reservation system.
+### 4. High-Concurrency Inventory Engine
 
-Example scenario:
+The central engineering feature of FlashStock is its inventory reservation system.
+
+Consider the following scenario:
 
 ```text
 Available stock: 10 units
@@ -101,20 +165,84 @@ Rejected attempts:       90
 Oversold units:           0
 ```
 
-This scenario will be implemented and verified through automated concurrency tests.
+The system is designed around server-side inventory validation and conditional database operations.
 
-### Admin Dashboard
+The reservation workflow includes:
+
+- Reservation creation.
+- Reservation expiration.
+- Reservation confirmation.
+- Reservation cancellation.
+- Stock release.
+- Inventory movement tracking.
+
+The concurrency scenario is a key automated testing target. Its results must be verified against the database before claiming production-level concurrency guarantees.
+
+### 5. Checkout & Idempotency
+
+Checkout functionality is designed to prevent duplicate operations.
+
+Idempotency helps ensure that repeated requests using the same idempotency key do not unintentionally create duplicate checkout operations.
+
+The backend includes services for:
+
+- Cart processing.
+- Checkout.
+- Order creation.
+- Reservation handling.
+- Duplicate request prevention.
+
+### 6. Payment Simulation
+
+FlashStock uses simulated payments rather than a real payment gateway.
+
+The payment workflow includes:
+
+- Payment initiation.
+- Successful payment handling.
+- Failed payment handling.
+- Payment records.
+- Reservation confirmation and release workflows.
+
+### 7. Flash Sales
+
+FlashStock includes backend functionality for flash sales.
+
+The intended functionality includes:
+
+- Creating flash sales.
+- Configuring discounted prices.
+- Setting sale start and end times.
+- Managing sale inventory limits.
+- Retrieving flash-sale information.
+
+Flash-sale purchases are intended to use the same inventory protection mechanisms as regular purchases.
+
+### 8. Administration & Analytics
+
+Backend functionality includes administrative and analytics routes.
+
+The planned administrative experience covers:
+
 - Product management.
 - Inventory monitoring.
 - Order management.
-- Flash sale management.
-- Sales and inventory analytics.
+- Customer information.
+- Flash-sale management.
+- Sales analytics.
+- Inventory summaries.
 
-## Database Design
+The frontend administrative dashboard is still part of the development roadmap.
 
-The initial database schema contains 13 application tables:
+---
 
-| Table | Responsibility |
+## 🗄️ Database Design
+
+FlashStock uses Cloudflare D1, powered by SQLite, with Drizzle ORM for database access and schema management.
+
+The database covers the application's main entities, including:
+
+| Entity | Responsibility |
 |---|---|
 | users | User accounts |
 | sessions | Authentication sessions |
@@ -129,28 +257,33 @@ The initial database schema contains 13 application tables:
 | payments | Payment records |
 | idempotency_keys | Duplicate request prevention |
 | inventory_movements | Inventory audit history |
+| flash_sales | Flash-sale configuration |
 
 ### Important Design Decisions
 
 - Prices are stored as integer paise to avoid floating-point precision problems.
 - Product information and inventory quantities are maintained separately.
 - Available stock is calculated as `on_hand - reserved`.
-- Reservations are designed to prevent multiple customers from claiming the same stock.
-- Idempotency keys are planned to prevent duplicate checkout operations.
+- Reservations are used to temporarily allocate inventory.
+- Idempotency keys help prevent duplicate checkout operations.
+- Inventory movement records provide an audit trail.
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```text
 FlashStock/
 │
 ├── apps/
+│   │
 │   ├── api/
 │   │   ├── migrations/
 │   │   ├── tests/
+│   │   │
 │   │   └── src/
 │   │       ├── db/
 │   │       ├── middleware/
-│   │       ├── repositories/
 │   │       ├── routes/
 │   │       ├── services/
 │   │       ├── types/
@@ -158,20 +291,31 @@ FlashStock/
 │   │       └── index.ts
 │   │
 │   └── web/
+│       ├── src/
+│       │   ├── components/
+│       │   ├── context/
+│       │   ├── pages/
+│       │   ├── services/
+│       │   └── types/
+│       ├── index.html
+│       └── package.json
 │
 ├── docs/
-│   └── FLASHSTOCK_DAY_01.md
+│   ├── FLASHSTOCK_DAY_01.md
+│   └── FLASHSTOCK_DAY_02.md
 │
 ├── .gitignore
 ├── package.json
 └── README.md
 ```
 
-## Getting Started
+---
+
+## ⚙️ Getting Started
 
 ### Prerequisites
 
-Install the following:
+Install:
 
 - Node.js
 - npm
@@ -189,26 +333,17 @@ git clone https://github.com/Harshith-76/flashstock-project-2026.git
 cd flashstock-project-2026
 ```
 
-### 3. Install root dependencies
+### 3. Install dependencies
+
+Install the root, backend and frontend dependencies:
 
 ```bash
 npm install
+npm --prefix apps/api install
+npm --prefix apps/web install
 ```
 
-### 4. Install backend dependencies
-
-```bash
-cd apps/api
-npm install
-```
-
-### 5. Apply local database migrations
-
-```bash
-npx wrangler d1 migrations apply flashstock-db --local
-```
-
-### 6. Start the backend
+### 4. Start the backend
 
 From the project root:
 
@@ -222,9 +357,44 @@ The local API will be available at:
 http://localhost:8787
 ```
 
-**Note:** The Cloudflare D1 database configuration must be available in `apps/api/wrangler.jsonc`. The local development database is separate from the remote Cloudflare database.
+### 5. Start the frontend
 
-## API Endpoints
+Open another terminal from the project root:
+
+```bash
+npm --prefix apps/web run dev
+```
+
+The frontend development server is configured to run at:
+
+```text
+http://localhost:3000
+```
+
+> **Database Note:** Local D1 development data is separate from the remote Cloudflare D1 database. Use the existing Wrangler configuration and migrations carefully. Never recreate the existing database or apply remote migrations without reviewing them first.
+
+---
+
+## 🔌 Backend API
+
+The backend is organized into modular route groups.
+
+| Module | Responsibility |
+|---|---|
+| Health | Backend and database health checks |
+| Authentication | Registration, login and logout |
+| Products | Product listing and management |
+| Cart | Shopping cart operations |
+| Checkout | Checkout processing |
+| Orders | Order management |
+| Inventory | Stock management |
+| Reservations | Inventory reservations |
+| Payments | Payment simulation |
+| Flash Sales | Flash-sale operations |
+| Admin | Administrative operations |
+| Analytics | Sales and inventory analytics |
+
+### Initial API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -233,43 +403,116 @@ http://localhost:8787
 | GET | `/api/v1/health/database` | Database connectivity check |
 | GET | `/api/v1/products` | Retrieve active products |
 
-Additional endpoints will be added as development progresses.
+Additional route groups have been added as the application develops. Refer to the backend source for the current endpoint definitions.
 
-## Development Roadmap
+---
+
+## 🧪 Testing
+
+Automated backend tests have been added for important application modules.
+
+Current test coverage areas include:
+
+- Authentication.
+- Product operations.
+- Inventory management.
+- Reservations.
+- Checkout.
+- Payments.
+- Concurrency scenarios.
+
+### Main Concurrency Test Scenario
+
+```text
+Initial inventory: 10 units
+
+Concurrent purchase attempts: 100
+
+Expected successful reservations: 10
+Expected rejected reservations: 90
+
+Expected final available stock: 0
+Expected oversold quantity: 0
+```
+
+The goal is to verify inventory consistency under simultaneous purchase attempts rather than relying on frontend validation.
+
+---
+
+## 📈 Development Roadmap
+
+### Completed Foundation
 
 - [x] Project initialization.
 - [x] Backend environment setup.
 - [x] Cloudflare Workers configuration.
-- [x] Cloudflare D1 database creation.
-- [x] Initial 13-table database schema.
+- [x] Cloudflare D1 database setup.
+- [x] Initial database schema.
 - [x] Drizzle ORM integration.
 - [x] Hono API setup.
 - [x] Backend health endpoints.
 - [x] Initial product listing endpoint.
-- [ ] Product management APIs.
-- [ ] Inventory management APIs.
-- [ ] Authentication and authorization.
-- [ ] Shopping cart functionality.
-- [ ] Checkout and order management.
-- [ ] Payment simulation.
-- [ ] Concurrency-safe inventory reservations.
-- [ ] Automated concurrency testing.
-- [ ] React frontend.
-- [ ] Admin dashboard.
+
+### Backend Development
+
+- [x] Authentication services and routes.
+- [x] Authentication middleware.
+- [x] Role-based authorization middleware.
+- [x] Rate-limiting middleware.
+- [x] Product services and routes.
+- [x] Shopping cart services and routes.
+- [x] Inventory services and routes.
+- [x] Reservation services and routes.
+- [x] Checkout services and routes.
+- [x] Order services and routes.
+- [x] Payment simulation services and routes.
+- [x] Flash-sale services and routes.
+- [x] Analytics services and routes.
+- [x] Backend automated test files.
+
+### Frontend Development
+
+- [x] React and Vite project foundation.
+- [x] Shared customer components.
+- [x] Authentication and cart context foundations.
+- [x] Customer storefront pages.
+- [x] Frontend API service foundation.
+- [ ] Complete frontend application bootstrap and routing.
+- [ ] Complete frontend build verification.
+- [ ] Complete customer-to-backend integration.
+- [ ] Admin dashboard implementation.
+
+### Verification & Deployment
+
+- [ ] Verify complete authentication flow.
+- [ ] Verify end-to-end checkout.
+- [ ] Verify reservation expiration and release.
+- [ ] Independently verify concurrency guarantees.
+- [ ] Verify all automated tests.
+- [ ] Fix remaining frontend integration issues.
+- [ ] Complete security review.
 - [ ] Production deployment.
+- [ ] Public application URL.
 
-## Documentation
+---
 
-Development progress is documented day by day in the `docs/` directory.
+## 📚 Development Documentation
+
+Development progress is maintained in the `docs/` directory.
 
 - [Day 1 — Project Foundation](docs/FLASHSTOCK_DAY_01.md)
+- [Day 2 — Backend Development & Frontend Foundation](docs/FLASHSTOCK_DAY_02.md)
 
-## Author
+---
+
+## 👨‍💻 Author
 
 **Harshith**
 
 GitHub: [@Harshith-76](https://github.com/Harshith-76)
 
+Repository: [FlashStock](https://github.com/Harshith-76/flashstock-project-2026)
+
 ---
 
-*FlashStock is an ongoing engineering project focused on full-stack development, database design, inventory consistency, and concurrency handling.*
+*FlashStock is an ongoing engineering project focused on full-stack development, database design, inventory consistency, secure application architecture, and high-concurrency transaction handling.*
