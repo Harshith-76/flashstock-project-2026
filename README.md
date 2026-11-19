@@ -7,7 +7,7 @@ FlashStock is a full-stack e-commerce and inventory management platform designed
 Its primary engineering challenge is preventing **overselling during concurrent purchase attempts** — ensuring that multiple customers cannot successfully purchase limited-stock products beyond the available quantity.
 
 > **Project Status:** 🚧 Under Development  
-> **Development Progress:** Day 02
+> **Development Progress:** Day 03
 
 ---
 
@@ -69,12 +69,12 @@ FlashStock follows a modular monolith architecture.
                API ROUTES
                     |
                     v
-            APPLICATION SERVICES
+           APPLICATION SERVICES
                     |
           +---------+---------+
           |         |         |
           v         v         v
-       AUTH     INVENTORY   CHECKOUT
+         AUTH   INVENTORY  CHECKOUT
           |         |         |
           +---------+---------+
                     |
@@ -103,17 +103,28 @@ The backend separates application responsibilities into:
 
 ### 1. Customer Application
 
-The customer-facing application includes the foundation for:
+The customer-facing application includes:
 
-- User registration and authentication.
+- User registration and authentication foundations.
 - Product browsing.
-- Product search and filtering.
+- Product search and filtering foundations.
 - Product detail pages.
-- Shopping cart management.
-- Checkout.
-- Order confirmation.
-- Order history.
-- Simulated payment processing.
+- Shopping cart foundations.
+- Checkout pages.
+- Order confirmation pages.
+- Order history foundations.
+- Responsive storefront.
+
+The landing page includes:
+
+- Navigation bar with mobile menu.
+- Hero section.
+- Product categories.
+- Featured products.
+- Flash-sale section.
+- Customer benefits.
+- Call-to-action section.
+- Footer.
 
 ### 2. Authentication & Security
 
@@ -176,7 +187,7 @@ The reservation workflow includes:
 - Stock release.
 - Inventory movement tracking.
 
-The concurrency scenario is a key automated testing target. Its results must be verified against the database before claiming production-level concurrency guarantees.
+**Important:** The concurrency scenario is a key automated testing target. Its results must be verified against the database before claiming production-level concurrency guarantees.
 
 ### 5. Checkout & Idempotency
 
@@ -232,7 +243,7 @@ The planned administrative experience covers:
 - Sales analytics.
 - Inventory summaries.
 
-The frontend administrative dashboard is still part of the development roadmap.
+The frontend administrative dashboard remains part of the development roadmap.
 
 ---
 
@@ -240,7 +251,7 @@ The frontend administrative dashboard is still part of the development roadmap.
 
 FlashStock uses Cloudflare D1, powered by SQLite, with Drizzle ORM for database access and schema management.
 
-The database covers the application's main entities, including:
+The database covers the application's main entities:
 
 | Entity | Responsibility |
 |---|---|
@@ -280,7 +291,6 @@ FlashStock/
 │   ├── api/
 │   │   ├── migrations/
 │   │   ├── tests/
-│   │   │
 │   │   └── src/
 │   │       ├── db/
 │   │       ├── middleware/
@@ -296,13 +306,15 @@ FlashStock/
 │       │   ├── context/
 │       │   ├── pages/
 │       │   ├── services/
-│       │   └── types/
+│       │   ├── types/
+│       │   └── main.tsx
 │       ├── index.html
 │       └── package.json
 │
 ├── docs/
 │   ├── FLASHSTOCK_DAY_01.md
-│   └── FLASHSTOCK_DAY_02.md
+│   ├── FLASHSTOCK_DAY_02.md
+│   └── FLASHSTOCK_DAY_03.md
 │
 ├── .gitignore
 ├── package.json
@@ -339,7 +351,9 @@ Install the root, backend and frontend dependencies:
 
 ```bash
 npm install
+
 npm --prefix apps/api install
+
 npm --prefix apps/web install
 ```
 
@@ -477,9 +491,12 @@ The goal is to verify inventory consistency under simultaneous purchase attempts
 - [x] Authentication and cart context foundations.
 - [x] Customer storefront pages.
 - [x] Frontend API service foundation.
-- [ ] Complete frontend application bootstrap and routing.
-- [ ] Complete frontend build verification.
+- [x] Frontend application bootstrap and routing.
+- [x] Responsive landing page.
+- [x] Frontend production build verification.
 - [ ] Complete customer-to-backend integration.
+- [ ] Complete shopping cart functionality.
+- [ ] Complete checkout integration.
 - [ ] Admin dashboard implementation.
 
 ### Verification & Deployment
@@ -502,6 +519,7 @@ Development progress is maintained in the `docs/` directory.
 
 - [Day 1 — Project Foundation](docs/FLASHSTOCK_DAY_01.md)
 - [Day 2 — Backend Development & Frontend Foundation](docs/FLASHSTOCK_DAY_02.md)
+- [Day 3 — Frontend Application Bootstrap & Landing Page](docs/FLASHSTOCK_DAY_03.md)
 
 ---
 
