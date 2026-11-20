@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { ReservationService } from '../services/reservation.service'
 
 const orderRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -21,16 +22,20 @@ orderRoutes.get('/', async (c) => {
         o.user_id AS userId,
         o.status,
         o.total_amount AS totalAmount,
+        o.shipping_address AS shippingAddress,
         o.created_at AS createdAt,
         o.updated_at AS updatedAt,
         u.name AS customerName,
         u.email AS customerEmail,
         r.id AS reservationId,
         r.status AS reservationStatus,
-        r.expires_at AS reservationExpiresAt
+        r.expires_at AS reservationExpiresAt,
+        pay.status AS paymentStatus,
+        pay.amount AS paymentAmount
       FROM orders o
       JOIN users u ON u.id = o.user_id
       LEFT JOIN reservations r ON r.order_id = o.id
+      LEFT JOIN payments pay ON pay.order_id = o.id
       WHERE 1=1
     `
     const params: unknown[] = []
@@ -76,6 +81,7 @@ orderRoutes.get('/:id', async (c) => {
         o.user_id AS userId,
         o.status,
         o.total_amount AS totalAmount,
+        o.shipping_address AS shippingAddress,
         o.created_at AS createdAt,
         o.updated_at AS updatedAt,
         u.name AS customerName,
@@ -151,7 +157,9 @@ orderRoutes.get('/:id', async (c) => {
 orderRoutes.patch('/:id/status', adminMiddleware, async (c) => {
   try {
     const id = c.req.param('id')
-    const { status } = await c.req.json()
+    if (!id) return c.json({ success: false, message: 'Order ID is required' }, 400)
+    const body = await c.req.json()
+    const status = body?.status
 
     const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'payment_failed']
     if (!validStatuses.includes(status)) {
@@ -161,18 +169,31 @@ orderRoutes.patch('/:id/status', adminMiddleware, async (c) => {
       }, 400)
     }
 
+    const order = await c.env.DB.prepare('SELECT status FROM orders WHERE id = ?').bind(id).first<{ status: string }>()
+    if (!order) return c.json({ success: false, message: 'Order not found' }, 404)
+
+    const allowedNext: Record<string, string[]> = {
+      pending: ['cancelled'],
+      confirmed: ['processing'],
+      processing: ['shipped'],
+      shipped: ['delivered']
+    }
+    if (!allowedNext[order.status]?.includes(status)) {
+      return c.json({ success: false, message: `Cannot change order from ${order.status} to ${status}` }, 409)
+    }
+
+    if (status === 'cancelled') {
+      await new ReservationService(c.env.DB).releaseReservation(id, 'released')
+      return c.json({ success: true, message: 'Order cancelled and reserved stock released', status })
+    }
+
     const result = await c.env.DB.prepare(`
       UPDATE orders
       SET status = ?, updated_at = datetime('now')
       WHERE id = ?
     `).bind(status, id).run()
 
-    if (!result.meta.changes) {
-      return c.json({
-        success: false,
-        message: 'Order not found'
-      }, 404)
-    }
+    if (!result.meta.changes) return c.json({ success: false, message: 'Order was changed concurrently' }, 409)
 
     return c.json({
       success: true,

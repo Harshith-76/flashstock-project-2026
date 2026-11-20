@@ -12,7 +12,10 @@ productRoutes.get('/', async (c) => {
   try {
     const category = c.req.query('category')
     const search = c.req.query('search')
-    const sort = c.req.query('sort') as any
+    const requestedSort = c.req.query('sort')
+    const sort = ['price_asc', 'price_desc', 'newest', 'popular'].includes(requestedSort || '')
+      ? requestedSort as 'price_asc' | 'price_desc' | 'newest' | 'popular'
+      : 'newest'
     const includeArchived = c.req.query('includeArchived') === 'true'
 
     const productService = new ProductService(c.env.DB)
@@ -32,7 +35,7 @@ productRoutes.get('/', async (c) => {
     console.error('List products error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch products'
+      message: 'Unable to fetch products'
     }, 500)
   }
 })
@@ -64,7 +67,7 @@ productRoutes.get('/:id', async (c) => {
     console.error('Get product error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch product'
+      message: 'Unable to fetch product'
     }, 500)
   }
 })

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { SqliteD1Adapter } from './d1-adapter'
 import { AuthService } from '../src/services/auth.service'
 import { extractBearerToken } from '../src/middleware/auth'
+import { registerSchema } from '../src/validators/auth'
 
 describe('Auth Service Suite', () => {
   let adapter: SqliteD1Adapter
@@ -98,6 +99,13 @@ describe('Auth Service Suite', () => {
     assert.equal(extractBearerToken('Bearer abc123'), 'abc123')
     assert.equal(extractBearerToken('bearer abc123'), 'abc123')
     assert.equal(extractBearerToken('Basic abc123'), undefined)
+  })
+
+  test('Public registration rejects caller-selected administrator roles', () => {
+    const result = registerSchema.safeParse({
+      name: 'Attacker', email: 'attacker@example.com', password: 'password123', role: 'admin'
+    })
+    assert.equal(result.success, false)
   })
 
   test('Logout terminates session', async () => {

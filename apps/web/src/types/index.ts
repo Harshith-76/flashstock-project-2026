@@ -96,6 +96,7 @@ export interface Order {
   userId: string
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'payment_failed'
   totalAmount: number
+  shippingAddress?: string | null
   createdAt: string
   updatedAt: string
   customerName?: string
@@ -103,6 +104,10 @@ export interface Order {
   items?: OrderItem[]
   reservation?: Reservation | null
   payment?: Payment | null
+  paymentStatus?: string | null
+  paymentAmount?: number | null
+  reservationStatus?: string | null
+  reservationExpiresAt?: string | null
 }
 
 export interface InventoryRecord {

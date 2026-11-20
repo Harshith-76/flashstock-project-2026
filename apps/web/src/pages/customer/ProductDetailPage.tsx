@@ -28,11 +28,13 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState<number>(1)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     const fetchProduct = async () => {
       if (!id) return
       setIsLoading(true)
+      setLoadError('')
       try {
         const res = await api.getProductById(id)
         if (res?.success && res.product) {
@@ -44,7 +46,7 @@ export const ProductDetailPage: React.FC = () => {
           })
         }
       } catch (err) {
-        console.error('Failed to load product detail:', err)
+        setLoadError(err instanceof Error ? err.message : 'Unable to load this product')
       } finally {
         setIsLoading(false)
       }
@@ -72,7 +74,7 @@ export const ProductDetailPage: React.FC = () => {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <h2 className="text-xl font-bold text-white mb-2">Product Not Found</h2>
-        <p className="text-xs text-gray-400 mb-6">The requested product could not be found or has been archived.</p>
+        <p role={loadError ? 'alert' : undefined} className="text-xs text-gray-400 mb-6">{loadError || 'The requested product could not be found or has been archived.'}</p>
         <Link
           to="/products"
           className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 text-dark-950 hover:bg-amber-400"
@@ -286,15 +288,15 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Guarantees List */}
+          {/* Checkout details */}
           <div className="pt-6 border-t border-dark-800 space-y-2 text-xs text-gray-400">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>Concurrency Safe: Conditional reservation locks stock upon checkout</span>
+              <span>Checkout reserves stock through a database transaction and inventory constraints</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>Idempotent Checkout: Repetitive requests will never double charge</span>
+              <span>Idempotency keys help prevent duplicate order creation when checkout is retried</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />

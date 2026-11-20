@@ -4,6 +4,7 @@ import { SqliteD1Adapter } from './d1-adapter'
 import { ProductService } from '../src/services/product.service'
 import { AuthService } from '../src/services/auth.service'
 import { ReservationService } from '../src/services/reservation.service'
+import { FlashSaleService } from '../src/services/flash-sale.service'
 
 describe('Reservation Engine Suite', () => {
   let adapter: SqliteD1Adapter
@@ -176,5 +177,33 @@ describe('Reservation Engine Suite', () => {
     const movement = adapter.db.prepare("SELECT * FROM inventory_movements WHERE product_id = ? AND movement_type = 'stock_sold'").get(prod.id) as any
     assert.ok(movement)
     assert.equal(movement.quantity, 3)
+  })
+
+  test('Expiration sweep releases a reservation using ISO timestamps', async () => {
+    const prod = await productService.createProduct({ name: 'Desk Lamp', sku: 'FS-LMP-002', price: 5000, initialStock: 4 })
+    const { order, reservation } = await reservationService.createReservation({ userId, items: [{ productId: prod.id, quantity: 2 }] })
+    adapter.db.prepare('UPDATE reservations SET expires_at = ? WHERE id = ?')
+      .run(new Date(Date.now() - 60_000).toISOString(), reservation.id)
+
+    assert.equal(await reservationService.expireStaleReservations(), 1)
+    const inventory = adapter.db.prepare('SELECT on_hand, reserved FROM inventory WHERE product_id = ?').get(prod.id) as any
+    const result = adapter.db.prepare('SELECT status FROM reservations WHERE id = ?').get(reservation.id) as any
+    assert.equal(inventory.on_hand, 4)
+    assert.equal(inventory.reserved, 0)
+    assert.equal(result.status, 'expired')
+    assert.equal((adapter.db.prepare('SELECT status FROM orders WHERE id = ?').get(order.id) as any).status, 'cancelled')
+  })
+
+  test('Released reservation returns its flash-sale allocation', async () => {
+    const prod = await productService.createProduct({ name: 'Sale Mouse', sku: 'FS-MSE-002', price: 20_000, initialStock: 5 })
+    const sale = await new FlashSaleService(adapter as any).createFlashSale({
+      productId: prod.id, discountPrice: 15_000, saleStockLimit: 3,
+      startTime: new Date(Date.now() - 60_000).toISOString(),
+      endTime: new Date(Date.now() + 60 * 60_000).toISOString(), status: 'active'
+    })
+    const { order } = await reservationService.createReservation({ userId, items: [{ productId: prod.id, quantity: 2 }] })
+    assert.equal((adapter.db.prepare('SELECT allocated_stock AS n FROM flash_sales WHERE id = ?').get(sale.id) as any).n, 2)
+    await reservationService.releaseReservation(order.id, 'released')
+    assert.equal((adapter.db.prepare('SELECT allocated_stock AS n FROM flash_sales WHERE id = ?').get(sale.id) as any).n, 0)
   })
 })

@@ -69,7 +69,7 @@ inventoryRoutes.patch('/:productId', async (c) => {
     }
 
     const inventoryService = new InventoryService(c.env.DB)
-    const updated = await inventoryService.adjustStock(productId, validation.data.onHand, body.notes)
+    const updated = await inventoryService.adjustStock(productId, validation.data.onHand, validation.data.notes)
 
     return c.json({
       success: true,

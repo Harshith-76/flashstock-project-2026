@@ -21,8 +21,16 @@ export class CartService {
     return cart.id
   }
 
-  async getCart(userId: string): Promise<Cart> {
-    const cartId = await this.getOrCreateActiveCart(userId)
+  async getCart(userId: string, requestedCartId?: string): Promise<Cart> {
+    const cartId = requestedCartId
+      ? (await this.db.prepare("SELECT id FROM carts WHERE id = ? AND user_id = ? AND status = 'active'")
+          .bind(requestedCartId, userId).first<{ id: string }>())?.id
+      : await this.getOrCreateActiveCart(userId)
+    if (!cartId) {
+      const err = new Error('Active cart not found')
+      ;(err as any).statusCode = 404
+      throw err
+    }
 
     const itemsResult = await this.db.prepare(`
       SELECT
@@ -43,8 +51,8 @@ export class CartService {
       LEFT JOIN inventory i ON i.product_id = p.id
       LEFT JOIN flash_sales fs ON fs.product_id = p.id
         AND fs.status = 'active'
-        AND fs.start_time <= datetime('now')
-        AND fs.end_time >= datetime('now')
+        AND datetime(fs.start_time) <= datetime('now')
+        AND datetime(fs.end_time) >= datetime('now')
       WHERE ci.cart_id = ?
       ORDER BY ci.id ASC
     `).bind(cartId).all<any>()
@@ -97,6 +105,16 @@ export class CartService {
       'SELECT id, quantity FROM cart_items WHERE cart_id = ? AND product_id = ?'
     ).bind(cartId, productId).first<{ id: string; quantity: number }>()
 
+    const stock = await this.db.prepare(`
+      SELECT COALESCE(on_hand - reserved, 0) AS available FROM inventory WHERE product_id = ?
+    `).bind(productId).first<{ available: number }>()
+    const requestedQuantity = (existingItem?.quantity || 0) + quantity
+    if (requestedQuantity > (stock?.available || 0)) {
+      const err = new Error(`Only ${stock?.available || 0} units are currently available`)
+      ;(err as any).statusCode = 409
+      throw err
+    }
+
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity
       await this.db.prepare(
@@ -115,6 +133,22 @@ export class CartService {
 
   async updateItemQuantity(userId: string, cartItemId: string, quantity: number): Promise<Cart> {
     const cartId = await this.getOrCreateActiveCart(userId)
+
+    const item = await this.db.prepare(`
+      SELECT ci.product_id AS productId, COALESCE(i.on_hand - i.reserved, 0) AS available
+      FROM cart_items ci LEFT JOIN inventory i ON i.product_id = ci.product_id
+      WHERE ci.id = ? AND ci.cart_id = ?
+    `).bind(cartItemId, cartId).first<{ productId: string; available: number }>()
+    if (!item) {
+      const err = new Error('Cart item not found')
+      ;(err as any).statusCode = 404
+      throw err
+    }
+    if (quantity > item.available) {
+      const err = new Error(`Only ${item.available} units are currently available`)
+      ;(err as any).statusCode = 409
+      throw err
+    }
 
     if (quantity <= 0) {
       await this.db.prepare(
@@ -146,6 +180,20 @@ export class CartService {
 
   async clearCart(userId: string): Promise<void> {
     const cartId = await this.getOrCreateActiveCart(userId)
-    await this.db.prepare('DELETE FROM cart_items WHERE id = ?').bind(cartId).run()
+    await this.db.prepare('DELETE FROM cart_items WHERE cart_id = ?').bind(cartId).run()
+  }
+
+  async convertCart(userId: string, cartId: string): Promise<void> {
+    const result = await this.db.batch([
+      this.db.prepare("DELETE FROM cart_items WHERE cart_id = ? AND cart_id IN (SELECT id FROM carts WHERE user_id = ? AND status = 'active')")
+        .bind(cartId, userId),
+      this.db.prepare("UPDATE carts SET status = 'converted', updated_at = datetime('now') WHERE id = ? AND user_id = ? AND status = 'active'")
+        .bind(cartId, userId)
+    ])
+    if (result[1].meta.changes !== 1) {
+      const err = new Error('Active cart not found')
+      ;(err as any).statusCode = 404
+      throw err
+    }
   }
 }

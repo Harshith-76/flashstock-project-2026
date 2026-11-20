@@ -175,6 +175,7 @@ export const orders = sqliteTable(
       enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'payment_failed']
     }).notNull().default('pending'),
     totalAmount: integer('total_amount').notNull(),
+    shippingAddress: text('shipping_address'),
     createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
     updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`)
   },
@@ -237,7 +238,8 @@ export const reservationItems = sqliteTable(
     id: text('id').primaryKey(),
     reservationId: text('reservation_id').notNull().references(() => reservations.id),
     productId: text('product_id').notNull().references(() => products.id),
-    quantity: integer('quantity').notNull()
+    quantity: integer('quantity').notNull(),
+    flashSaleId: text('flash_sale_id').references(() => flashSales.id)
   },
   (table) => [
     uniqueIndex('idx_reservation_product_unique').on(table.reservationId, table.productId),
@@ -340,3 +342,11 @@ export const flashSales = sqliteTable(
     check('flash_sales_quota_check', sql`${table.allocatedStock} <= ${table.saleStockLimit}`)
   ]
 )
+
+// Links a checkout-created order to its source cart so the cart is only
+// converted after payment succeeds.
+export const orderCarts = sqliteTable('order_carts', {
+  orderId: text('order_id').primaryKey().references(() => orders.id, { onDelete: 'cascade' }),
+  cartId: text('cart_id').notNull().references(() => carts.id),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+}, (table) => [index('idx_order_carts_cart_id').on(table.cartId)])

@@ -90,15 +90,19 @@ export class AnalyticsService {
 
     // 8. Revenue trends (grouped by date)
     const revenueTrends = await this.db.prepare(`
-      SELECT
-        substr(o.created_at, 1, 10) AS date,
-        SUM(o.total_amount) AS revenue,
-        COUNT(o.id) AS orderCount
-      FROM orders o
-      WHERE o.status IN ('confirmed', 'processing', 'shipped', 'delivered')
-      GROUP BY substr(o.created_at, 1, 10)
+      SELECT date, revenue, orderCount
+      FROM (
+        SELECT
+          substr(o.created_at, 1, 10) AS date,
+          SUM(o.total_amount) AS revenue,
+          COUNT(o.id) AS orderCount
+        FROM orders o
+        WHERE o.status IN ('confirmed', 'processing', 'shipped', 'delivered')
+        GROUP BY substr(o.created_at, 1, 10)
+        ORDER BY date DESC
+        LIMIT 14
+      )
       ORDER BY date ASC
-      LIMIT 14
     `).all<any>()
 
     return {

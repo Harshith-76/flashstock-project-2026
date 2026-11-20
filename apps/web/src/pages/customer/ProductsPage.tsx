@@ -6,35 +6,46 @@ import { Product } from '../../types'
 import { ProductCard } from '../../components/common/ProductCard'
 
 const CATEGORIES = ['All', 'Electronics', 'Audio', 'Furniture', 'Accessories']
+type SortOption = 'price_asc' | 'price_desc' | 'newest' | 'popular'
 
 export const ProductsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState('')
 
   const categoryParam = searchParams.get('category') || 'All'
   const searchParam = searchParams.get('search') || ''
-  const sortParam = searchParams.get('sort') || 'newest'
+  const rawSortParam = searchParams.get('sort') || 'newest'
+  const sortParam: SortOption = ['price_asc', 'price_desc', 'newest', 'popular'].includes(rawSortParam) ? rawSortParam as SortOption : 'newest'
 
   const [selectedCategory, setSelectedCategory] = useState(categoryParam)
   const [searchInput, setSearchInput] = useState(searchParam)
-  const [sortOption, setSortOption] = useState(sortParam)
+  const [sortOption, setSortOption] = useState<SortOption>(sortParam)
   const [inStockOnly, setInStockOnly] = useState(false)
+
+  useEffect(() => {
+    setSelectedCategory(categoryParam)
+    setSearchInput(searchParam)
+    setSortOption(sortParam)
+  }, [categoryParam, searchParam, sortParam])
 
   const fetchProducts = async () => {
     setIsLoading(true)
+    setError('')
     try {
       const res = await api.getProducts({
         category: selectedCategory === 'All' ? undefined : selectedCategory,
-        search: searchInput.trim() || undefined,
+        search: searchParam.trim() || undefined,
         sort: sortOption
       })
 
       if (res?.success) {
         setProducts(res.products || [])
-      }
+      } else setError(res?.message || 'Unable to load products')
     } catch (err) {
-      console.error('Failed to fetch products:', err)
+      setError(err instanceof Error ? err.message : 'Unable to load products')
+      setProducts([])
     } finally {
       setIsLoading(false)
     }
@@ -42,11 +53,15 @@ export const ProductsPage: React.FC = () => {
 
   useEffect(() => {
     fetchProducts()
-  }, [selectedCategory, sortOption])
+  }, [selectedCategory, sortOption, searchParam])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    fetchProducts()
+    setSearchParams(params => {
+      if (searchInput.trim()) params.set('search', searchInput.trim())
+      else params.delete('search')
+      return params
+    })
   }
 
   const filteredProducts = inStockOnly
@@ -92,7 +107,10 @@ export const ProductsPage: React.FC = () => {
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => {
+                setSelectedCategory(cat)
+                setSearchParams(params => { if (cat === 'All') params.delete('category'); else params.set('category', cat); return params })
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                 selectedCategory === cat
                   ? 'bg-amber-500 text-dark-950 font-bold shadow-md shadow-amber-500/20'
@@ -120,16 +138,19 @@ export const ProductsPage: React.FC = () => {
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <select
               value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
               className="bg-dark-800 border border-dark-700 text-white rounded-xl px-2.5 py-1 text-xs outline-none focus:border-amber-500/50"
             >
               <option value="newest">Newest First</option>
               <option value="price_asc">Price: Low to High</option>
               <option value="price_desc">Price: High to Low</option>
+              <option value="popular">Most popular</option>
             </select>
           </div>
         </div>
       </div>
+
+      {error && <div role="alert" className="rounded-2xl border border-red-900 bg-red-950/50 p-4 text-sm text-red-200">{error}<button onClick={() => void fetchProducts()} className="ml-3 underline">Retry</button></div>}
 
       {/* Product Grid */}
       {isLoading ? (

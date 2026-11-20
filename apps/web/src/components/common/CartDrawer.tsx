@@ -1,4 +1,5 @@
 import React from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight } from 'lucide-react'
 import { useCart } from '../../context/CartContext'
@@ -6,6 +7,12 @@ import { useCart } from '../../context/CartContext'
 export const CartDrawer: React.FC = () => {
   const { cart, isDrawerOpen, closeDrawer, updateQuantity, removeFromCart, totalAmount, itemCount } = useCart()
   const navigate = useNavigate()
+  const [error, setError] = useState('')
+  const update = async (action: () => Promise<void>) => {
+    setError('')
+    try { await action() }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Cart update failed') }
+  }
 
   if (!isDrawerOpen) return null
 
@@ -44,6 +51,7 @@ export const CartDrawer: React.FC = () => {
 
           {/* Cart items list */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/50 p-3 text-xs text-red-200">{error}</p>}
             {!cart?.items || cart.items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
                 <div className="w-16 h-16 rounded-2xl bg-dark-800/80 border border-dark-700 flex items-center justify-center mb-4">
@@ -101,14 +109,14 @@ export const CartDrawer: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <div className="flex items-center border border-dark-600 rounded-lg bg-dark-900">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => void update(() => updateQuantity(item.id, item.quantity - 1))}
                             className="p-1 hover:text-amber-400 text-gray-400 transition-colors"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
                           <span className="px-2.5 text-xs font-mono font-medium text-white">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => void update(() => updateQuantity(item.id, item.quantity + 1))}
                             disabled={item.available !== undefined && item.quantity >= item.available}
                             className="p-1 hover:text-amber-400 text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                           >
@@ -117,7 +125,7 @@ export const CartDrawer: React.FC = () => {
                         </div>
 
                         <button
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => void update(() => removeFromCart(item.id))}
                           className="p-1 text-gray-500 hover:text-red-400 transition-colors"
                           title="Remove item"
                         >
@@ -140,8 +148,8 @@ export const CartDrawer: React.FC = () => {
                   <span className="text-white font-mono font-medium">{totalFormatted}</span>
                 </div>
                 <div className="flex justify-between text-gray-400">
-                  <span>Inventory Reservation</span>
-                  <span className="text-emerald-400 font-medium">Guaranteed Safe</span>
+                  <span>Inventory</span>
+                  <span className="text-gray-300 font-medium">Checked at checkout</span>
                 </div>
                 <div className="flex justify-between text-gray-400">
                   <span>Shipping</span>

@@ -14,6 +14,7 @@ import flashSaleRoutes from './routes/flash-sales'
 import analyticsRoutes from './routes/analytics'
 import adminRoutes from './routes/admin'
 import { User, Session } from './types'
+import { ReservationService } from './services/reservation.service'
 
 const app = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -21,7 +22,7 @@ const app = new Hono<{ Bindings: Env; Variables: { user: User; session: Session 
 app.use(
   '*',
   cors({
-    origin: (origin) => origin || '*',
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key']
@@ -64,12 +65,18 @@ app.notFound((c) => {
 app.onError((error: any, c) => {
   console.error('Unhandled API error:', error)
 
-  const statusCode = error?.statusCode && typeof error.statusCode === 'number' ? error.statusCode : 500
+  const requestedStatus = error?.statusCode && typeof error.statusCode === 'number' ? error.statusCode : 500
+  const statusCode = requestedStatus >= 400 && requestedStatus < 500 ? requestedStatus : 500
 
   return c.json({
     success: false,
-    message: error?.message || 'Internal server error'
+    message: statusCode < 500 ? error?.message || 'Request failed' : 'Internal server error'
   }, statusCode as any)
 })
 
-export default app
+export default {
+  fetch: app.fetch,
+  scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(new ReservationService(env.DB).expireStaleReservations())
+  }
+}

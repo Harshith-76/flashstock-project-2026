@@ -22,7 +22,7 @@ flashSaleRoutes.get('/active', async (c) => {
     console.error('Get active flash sales error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch active flash sales'
+      message: 'Unable to fetch active flash sales'
     }, 500)
   }
 })

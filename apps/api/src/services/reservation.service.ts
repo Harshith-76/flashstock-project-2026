@@ -24,8 +24,11 @@ export class ReservationService {
     items: CheckoutItemInput[]
     idempotencyKey?: string
     requestHash?: string
+    cartId?: string
+    shippingAddress?: Record<string, string>
   }): Promise<CreateReservationResult> {
-    const { userId, items, idempotencyKey, requestHash } = params
+    const { userId, idempotencyKey, requestHash, cartId, shippingAddress } = params
+    let { items } = params
 
     if (!items || items.length === 0) {
       const err = new Error('No items specified for reservation')
@@ -34,7 +37,10 @@ export class ReservationService {
     }
 
     // Step 1: Fetch all products and active flash sales
-    const productIds = Array.from(new Set(items.map((i) => i.productId)))
+    const quantities = new Map<string, number>()
+    for (const item of items) quantities.set(item.productId, (quantities.get(item.productId) || 0) + item.quantity)
+    items = Array.from(quantities, ([productId, quantity]) => ({ productId, quantity }))
+    const productIds = items.map((i) => i.productId)
     const placeholders = productIds.map(() => '?').join(', ')
 
     const productsResult = await this.db.prepare(`
@@ -54,8 +60,8 @@ export class ReservationService {
       JOIN inventory i ON i.product_id = p.id
       LEFT JOIN flash_sales fs ON fs.product_id = p.id
         AND fs.status = 'active'
-        AND fs.start_time <= datetime('now')
-        AND fs.end_time >= datetime('now')
+        AND datetime(fs.start_time) <= datetime('now')
+        AND datetime(fs.end_time) >= datetime('now')
       WHERE p.id IN (${placeholders})
     `).bind(...productIds).all<any>()
 
@@ -158,10 +164,16 @@ export class ReservationService {
     // 3b: Insert Order
     statements.push(
       this.db.prepare(`
-        INSERT INTO orders (id, order_number, user_id, status, total_amount, created_at, updated_at)
-        VALUES (?, ?, ?, 'pending', ?, ?, ?)
-      `).bind(orderId, orderNumber, userId, totalAmount, now, now)
+        INSERT INTO orders (id, order_number, user_id, status, total_amount, shipping_address, created_at, updated_at)
+        VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)
+      `).bind(orderId, orderNumber, userId, totalAmount, shippingAddress ? JSON.stringify(shippingAddress) : null, now, now)
     )
+
+    if (cartId) {
+      statements.push(this.db.prepare(`
+        INSERT INTO order_carts (order_id, cart_id, created_at) VALUES (?, ?, ?)
+      `).bind(orderId, cartId, now))
+    }
 
     // 3c: Insert Order Items
     for (const oi of orderItemsToInsert) {
@@ -185,9 +197,12 @@ export class ReservationService {
     for (const item of items) {
       statements.push(
         this.db.prepare(`
-          INSERT INTO reservation_items (id, reservation_id, product_id, quantity)
-          VALUES (?, ?, ?, ?)
-        `).bind(crypto.randomUUID(), reservationId, item.productId, item.quantity)
+          INSERT INTO reservation_items (id, reservation_id, product_id, quantity, flash_sale_id)
+          VALUES (?, ?, ?, ?, ?)
+        `).bind(
+          crypto.randomUUID(), reservationId, item.productId, item.quantity,
+          orderItemsToInsert.find((oi) => oi.productId === item.productId)?.flashSaleId || null
+        )
       )
     }
 
@@ -258,6 +273,7 @@ export class ReservationService {
       userId,
       status: 'pending',
       totalAmount,
+      shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : null,
       createdAt: now,
       updatedAt: now,
       items: orderItemsToInsert.map((oi) => ({
@@ -327,10 +343,10 @@ export class ReservationService {
     }
 
     const items = await this.db.prepare(`
-      SELECT product_id, quantity
+      SELECT product_id, quantity, flash_sale_id
       FROM reservation_items
       WHERE reservation_id = ?
-    `).bind(reservation.id).all<{ product_id: string; quantity: number }>()
+    `).bind(reservation.id).all<{ product_id: string; quantity: number; flash_sale_id: string | null }>()
 
     const now = new Date().toISOString()
     const statements: D1PreparedStatement[] = [
@@ -395,10 +411,10 @@ export class ReservationService {
     }
 
     const items = await this.db.prepare(`
-      SELECT product_id, quantity
+      SELECT product_id, quantity, flash_sale_id
       FROM reservation_items
       WHERE reservation_id = ?
-    `).bind(reservation.id).all<{ product_id: string; quantity: number }>()
+    `).bind(reservation.id).all<{ product_id: string; quantity: number; flash_sale_id: string | null }>()
 
     const now = new Date().toISOString()
     const finalReservationStatus = reason === 'expired' ? 'expired' : 'released'
@@ -426,6 +442,13 @@ export class ReservationService {
           WHERE product_id = ?
         `).bind(item.quantity, item.product_id)
       )
+
+      if (item.flash_sale_id) {
+        statements.push(this.db.prepare(`
+          UPDATE flash_sales SET allocated_stock = allocated_stock - ?
+          WHERE id = ? AND allocated_stock >= ?
+        `).bind(item.quantity, item.flash_sale_id, item.quantity))
+      }
 
       statements.push(
         this.db.prepare(`
@@ -455,7 +478,7 @@ export class ReservationService {
       SELECT order_id
       FROM reservations
       WHERE status = 'active'
-        AND expires_at <= datetime('now')
+        AND datetime(expires_at) <= datetime('now')
     `).all<{ order_id: string }>()
 
     let count = 0

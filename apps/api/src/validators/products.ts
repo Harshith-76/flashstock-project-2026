@@ -43,5 +43,6 @@ export const updateProductSchema = z.object({
 )
 
 export const updateInventorySchema = z.object({
-  onHand: z.number().int().nonnegative()
+  onHand: z.number().int().nonnegative(),
+  notes: z.string().trim().max(500).optional()
 }).strict()

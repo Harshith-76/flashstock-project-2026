@@ -31,11 +31,11 @@ export const CheckoutPage: React.FC = () => {
   )
 
   const [shippingAddress, setShippingAddress] = useState({
-    fullName: user?.name || 'Jane Doe',
-    addressLine1: '42 High-Concurrency Tech Blvd',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    postalCode: '560001',
+    fullName: user?.name || '',
+    addressLine1: '',
+    city: '',
+    state: '',
+    postalCode: '',
     country: 'India'
   })
 
@@ -92,7 +92,7 @@ export const CheckoutPage: React.FC = () => {
       const res = await api.checkout({
         idempotencyKey,
         cartId: directItem ? undefined : cart?.id,
-        items: directItem ? checkoutItems : undefined,
+        items: checkoutItems,
         shippingAddress
       })
 
@@ -124,6 +124,7 @@ export const CheckoutPage: React.FC = () => {
       })
 
       if (res?.success) {
+        await refreshCart()
         navigate(`/order-confirmation/${createdOrder.id}`)
       } else {
         setErrorMsg(`Payment outcome: ${res?.message || 'Payment simulation failed'}`)
@@ -211,6 +212,16 @@ export const CheckoutPage: React.FC = () => {
                     required
                     value={shippingAddress.city}
                     onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                    className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 mb-1">State</label>
+                  <input
+                    type="text"
+                    required
+                    value={shippingAddress.state}
+                    onChange={(e) => setShippingAddress({ ...shippingAddress, state: e.target.value })}
                     className="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500/50"
                   />
                 </div>

@@ -39,7 +39,7 @@ export async function getAuthenticatedUser(c: Context<{ Bindings: Env; Variables
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.id = ?
-        AND s.expires_at > datetime('now')
+        AND datetime(s.expires_at) > datetime('now')
     `).bind(sessionId).first<{
       session_id: string
       user_id: string

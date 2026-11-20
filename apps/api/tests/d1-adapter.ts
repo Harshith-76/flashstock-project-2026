@@ -36,6 +36,24 @@ export class SqliteD1Adapter {
       'utf-8'
     )
     this.db.exec(migration2)
+
+    const migration3 = fs.readFileSync(
+      path.resolve(__dirname, '../migrations/0003_order_carts.sql'),
+      'utf-8'
+    )
+    this.db.exec(migration3)
+
+    const migration4 = fs.readFileSync(
+      path.resolve(__dirname, '../migrations/0004_reservation_flash_sales.sql'),
+      'utf-8'
+    )
+    this.db.exec(migration4)
+
+    const migration5 = fs.readFileSync(
+      path.resolve(__dirname, '../migrations/0005_order_shipping_address.sql'),
+      'utf-8'
+    )
+    this.db.exec(migration5)
   }
 
   prepare(sql: string): MockD1PreparedStatement {

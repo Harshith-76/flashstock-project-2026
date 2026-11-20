@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, ArrowRight, Trash2, Plus, Minus, ShieldCheck } from 'lucide-react'
 import { useCart } from '../../context/CartContext'
@@ -6,6 +6,12 @@ import { useCart } from '../../context/CartContext'
 export const CartPage: React.FC = () => {
   const { cart, updateQuantity, removeFromCart, clearCart, totalAmount, itemCount } = useCart()
   const navigate = useNavigate()
+  const [mutationError, setMutationError] = useState('')
+  const runCartAction = async (action: () => Promise<void>) => {
+    setMutationError('')
+    try { await action() }
+    catch (error) { setMutationError(error instanceof Error ? error.message : 'Cart update failed') }
+  }
 
   const totalFormatted = (totalAmount / 100).toLocaleString('en-IN', {
     style: 'currency',
@@ -44,13 +50,15 @@ export const CartPage: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={clearCart}
+          onClick={() => void runCartAction(clearCart)}
           className="text-xs text-gray-400 hover:text-red-400 transition-colors flex items-center gap-1.5"
         >
           <Trash2 className="w-3.5 h-3.5" />
           Clear Cart
         </button>
       </div>
+
+      {mutationError && <p role="alert" className="mb-5 rounded-xl border border-red-800 bg-red-950/50 p-3 text-sm text-red-200">{mutationError}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Items List */}
@@ -98,14 +106,14 @@ export const CartPage: React.FC = () => {
                   {/* Quantity */}
                   <div className="flex items-center border border-dark-700 rounded-xl bg-dark-900 p-1">
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => void runCartAction(() => updateQuantity(item.id, item.quantity - 1))}
                       className="p-1 hover:text-amber-400 text-gray-400 transition-colors"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <span className="px-3 text-xs font-mono font-medium text-white">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => void runCartAction(() => updateQuantity(item.id, item.quantity + 1))}
                       disabled={item.available !== undefined && item.quantity >= item.available}
                       className="p-1 hover:text-amber-400 text-gray-400 disabled:opacity-30 transition-colors"
                     >
@@ -116,7 +124,7 @@ export const CartPage: React.FC = () => {
                   <div className="text-right">
                     <span className="text-base font-bold font-mono text-white block">{itemSubtotal}</span>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => void runCartAction(() => removeFromCart(item.id))}
                       className="text-[11px] text-gray-500 hover:text-red-400 transition-colors"
                     >
                       Remove

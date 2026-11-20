@@ -95,6 +95,16 @@ export class PaymentService {
       // Confirm reservation & deduct stock
       await this.reservationService.confirmReservation(orderId)
 
+      const sourceCart = await this.db.prepare('SELECT cart_id FROM order_carts WHERE order_id = ?')
+        .bind(orderId).first<{ cart_id: string }>()
+      if (sourceCart) {
+        await this.db.batch([
+          this.db.prepare('DELETE FROM cart_items WHERE cart_id = ?').bind(sourceCart.cart_id),
+          this.db.prepare("UPDATE carts SET status = 'converted', updated_at = ? WHERE id = ? AND status = 'active'")
+            .bind(now, sourceCart.cart_id)
+        ])
+      }
+
       await this.savePaymentRecord(paymentId, orderId, 'succeeded', order.total_amount, ref, now, !!existingPayment)
 
       return {

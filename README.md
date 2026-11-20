@@ -7,7 +7,7 @@ FlashStock is a full-stack e-commerce and inventory management platform designed
 Its primary engineering challenge is preventing **overselling during concurrent purchase attempts** — ensuring that multiple customers cannot successfully purchase limited-stock products beyond the available quantity.
 
 > **Project Status:** 🚧 Under Development  
-> **Development Progress:** Day 03
+> **Development Progress:** Day 04
 
 ---
 
@@ -42,7 +42,7 @@ The objective is to build a practical, production-style application demonstratin
 | Database | Cloudflare D1 (SQLite) |
 | ORM | Drizzle ORM |
 | Validation | Zod |
-| Testing | Vitest |
+| Testing | Node.js test runner (`tsx --test`) |
 | Version Control | Git, GitHub |
 | Deployment Target | Cloudflare |
 
@@ -243,7 +243,7 @@ The planned administrative experience covers:
 - Sales analytics.
 - Inventory summaries.
 
-The frontend administrative dashboard remains part of the development roadmap.
+The frontend now includes an admin workspace for these database-backed operations. Settings and richer analytics visualizations remain incomplete.
 
 ---
 
@@ -361,9 +361,14 @@ npm --prefix apps/web install
 
 From the project root:
 
+Apply pending migrations to the **local** D1 database, then start the API:
+
 ```bash
-npx wrangler dev --config apps/api/wrangler.jsonc
+npx wrangler d1 migrations apply flashstock-db --local --config apps/api/wrangler.jsonc
+npm run dev:api
 ```
+
+The migration command above is local-only. Review migrations before applying them to any remote database.
 
 The local API will be available at:
 
@@ -376,7 +381,7 @@ http://localhost:8787
 Open another terminal from the project root:
 
 ```bash
-npm --prefix apps/web run dev
+npm run dev:web
 ```
 
 The frontend development server is configured to run at:
@@ -435,6 +440,8 @@ Current test coverage areas include:
 - Payments.
 - Concurrency scenarios.
 
+Run the suite with `npm test`. The concurrency test currently uses the repository's SQLite-backed D1 adapter; it does not independently verify hosted Cloudflare D1 behavior.
+
 ### Main Concurrency Test Scenario
 
 ```text
@@ -489,23 +496,24 @@ The goal is to verify inventory consistency under simultaneous purchase attempts
 - [x] React and Vite project foundation.
 - [x] Shared customer components.
 - [x] Authentication and cart context foundations.
-- [x] Customer storefront pages.
+- [x] Customer storefront, catalog, product, cart, checkout, and order pages.
 - [x] Frontend API service foundation.
 - [x] Frontend application bootstrap and routing.
 - [x] Responsive landing page.
 - [x] Frontend production build verification.
-- [ ] Complete customer-to-backend integration.
-- [ ] Complete shopping cart functionality.
-- [ ] Complete checkout integration.
-- [ ] Admin dashboard implementation.
+- [x] Cookie-based customer registration, login, and protected account routes.
+- [x] Backend-synchronized cart and checkout/payment workflow.
+- [x] Customer account, order history, and order detail pages.
+- [x] Admin workspace foundations for products, inventory, orders, customers, sales, and analytics.
+- [ ] Finish admin settings and richer analytics visualizations.
 
 ### Verification & Deployment
 
-- [ ] Verify complete authentication flow.
-- [ ] Verify end-to-end checkout.
-- [ ] Verify reservation expiration and release.
-- [ ] Independently verify concurrency guarantees.
-- [ ] Verify all automated tests.
+- [x] Verify authentication and checkout services with automated tests.
+- [x] Verify reservation expiration/release and payment outcomes with automated tests.
+- [x] Run the 100-attempt concurrency scenario against the SQLite test adapter.
+- [ ] Verify concurrency guarantees against Cloudflare D1 itself.
+- [x] Verify all automated backend tests.
 - [ ] Fix remaining frontend integration issues.
 - [ ] Complete security review.
 - [ ] Production deployment.
@@ -520,6 +528,7 @@ Development progress is maintained in the `docs/` directory.
 - [Day 1 — Project Foundation](docs/FLASHSTOCK_DAY_01.md)
 - [Day 2 — Backend Development & Frontend Foundation](docs/FLASHSTOCK_DAY_02.md)
 - [Day 3 — Frontend Application Bootstrap & Landing Page](docs/FLASHSTOCK_DAY_03.md)
+- [Day 4 — Customer and Admin Integration](docs/FLASHSTOCK_DAY_04.md)
 
 ---
 

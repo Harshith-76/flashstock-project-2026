@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
 import { ReservationService } from '../services/reservation.service'
 import { authMiddleware } from '../middleware/auth'
+import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
 
 const reservationRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
 // Background expiration sweep endpoint
-reservationRoutes.post('/sweep-expired', async (c) => {
+reservationRoutes.post('/sweep-expired', authMiddleware, adminMiddleware, async (c) => {
   try {
     const reservationService = new ReservationService(c.env.DB)
     const expiredCount = await reservationService.expireStaleReservations()
@@ -29,6 +30,13 @@ reservationRoutes.post('/sweep-expired', async (c) => {
 reservationRoutes.get('/:orderId', authMiddleware, async (c) => {
   try {
     const orderId = c.req.param('orderId')
+    const user = c.get('user')
+    const order = await c.env.DB.prepare('SELECT user_id FROM orders WHERE id = ?')
+      .bind(orderId).first<{ user_id: string }>()
+    if (!order) return c.json({ success: false, message: 'Reservation not found' }, 404)
+    if (user.role !== 'admin' && order.user_id !== user.id) {
+      return c.json({ success: false, message: 'Access denied' }, 403)
+    }
     const row = await c.env.DB.prepare(`
       SELECT
         r.id,

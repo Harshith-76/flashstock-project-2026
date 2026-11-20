@@ -13,15 +13,9 @@ class ApiError extends Error {
 }
 
 async function request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('flashstock_token')
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {})
-  }
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
   }
 
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
@@ -55,7 +49,7 @@ export const api = {
   getMe: () => request('/auth/me'),
 
   // Products
-  getProducts: (params?: { category?: string; search?: string; sort?: string; includeArchived?: boolean }) => {
+  getProducts: (params?: { category?: string; search?: string; sort?: 'price_asc' | 'price_desc' | 'newest' | 'popular'; includeArchived?: boolean }) => {
     const searchParams = new URLSearchParams()
     if (params?.category) searchParams.append('category', params.category)
     if (params?.search) searchParams.append('search', params.search)

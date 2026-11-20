@@ -35,8 +35,8 @@ export class ProductService {
       LEFT JOIN inventory i ON i.product_id = p.id
       LEFT JOIN flash_sales fs ON fs.product_id = p.id
         AND fs.status = 'active'
-        AND fs.start_time <= datetime('now')
-        AND fs.end_time >= datetime('now')
+        AND datetime(fs.start_time) <= datetime('now')
+        AND datetime(fs.end_time) >= datetime('now')
       WHERE 1=1
     `
 
@@ -66,6 +66,13 @@ export class ProductService {
         break
       case 'newest':
         query += ' ORDER BY p.created_at DESC'
+        break
+      case 'popular':
+        query += ` ORDER BY (
+          SELECT COALESCE(SUM(oi.quantity), 0)
+          FROM order_items oi JOIN orders o ON o.id = oi.order_id
+          WHERE oi.product_id = p.id AND o.status IN ('confirmed', 'processing', 'shipped', 'delivered')
+        ) DESC, p.created_at DESC`
         break
       default:
         query += ' ORDER BY p.created_at DESC'
@@ -137,8 +144,8 @@ export class ProductService {
       LEFT JOIN inventory i ON i.product_id = p.id
       LEFT JOIN flash_sales fs ON fs.product_id = p.id
         AND fs.status = 'active'
-        AND fs.start_time <= datetime('now')
-        AND fs.end_time >= datetime('now')
+        AND datetime(fs.start_time) <= datetime('now')
+        AND datetime(fs.end_time) >= datetime('now')
       WHERE p.id = ?
     `).bind(id).first<any>()
 

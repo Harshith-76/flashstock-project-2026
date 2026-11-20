@@ -8,7 +8,6 @@ export class AuthService {
     name: string
     email: string
     password: string
-    role?: UserRole
   }): Promise<{ user: User; session: Session }> {
     const existing = await this.db.prepare(
       'SELECT id FROM users WHERE email = ?'
@@ -22,7 +21,8 @@ export class AuthService {
 
     const userId = crypto.randomUUID()
     const passwordHash = await hashPassword(data.password)
-    const role: UserRole = data.role || 'customer'
+    // Public registration must never allow callers to create administrators.
+    const role: UserRole = 'customer'
     const now = new Date().toISOString()
 
     const sessionId = crypto.randomUUID()
@@ -140,7 +140,7 @@ export class AuthService {
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.id = ?
-        AND s.expires_at > datetime('now')
+        AND datetime(s.expires_at) > datetime('now')
     `).bind(sessionId).first<{
       session_id: string
       user_id: string

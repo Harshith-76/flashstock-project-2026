@@ -30,7 +30,7 @@ authRoutes.post('/register', authRateLimit, async (c) => {
     setCookie(c, SESSION_COOKIE_NAME, session.id, {
       path: '/',
       httpOnly: true,
-      secure: false, // Set to true in strict HTTPS production
+      secure: new URL(c.req.url).protocol === 'https:',
       sameSite: 'Lax',
       maxAge: 7 * 24 * 60 * 60
     })
@@ -38,8 +38,7 @@ authRoutes.post('/register', authRateLimit, async (c) => {
     return c.json({
       success: true,
       message: 'Account created successfully',
-      user,
-      token: session.id
+      user
     }, 201)
   } catch (error: any) {
     console.error('Registration failed:', error)
@@ -69,7 +68,7 @@ authRoutes.post('/login', authRateLimit, async (c) => {
     setCookie(c, SESSION_COOKIE_NAME, session.id, {
       path: '/',
       httpOnly: true,
-      secure: false,
+      secure: new URL(c.req.url).protocol === 'https:',
       sameSite: 'Lax',
       maxAge: 7 * 24 * 60 * 60
     })
@@ -77,8 +76,7 @@ authRoutes.post('/login', authRateLimit, async (c) => {
     return c.json({
       success: true,
       message: 'Logged in successfully',
-      user,
-      token: session.id
+      user
     })
   } catch (error: any) {
     console.error('Login failed:', error)

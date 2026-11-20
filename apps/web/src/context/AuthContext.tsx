@@ -7,7 +7,7 @@ interface AuthContextType {
   isLoading: boolean
   isAdmin: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string, role?: 'customer' | 'admin') => Promise<void>
+  register: (name: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   loginAsDemo: (role: 'customer' | 'admin') => Promise<void>
 }
@@ -39,17 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const res = await api.login({ email, password })
-    if (res?.token) {
-      localStorage.setItem('flashstock_token', res.token)
-    }
     setUser(res.user)
   }
 
-  const register = async (name: string, email: string, password: string, role: 'customer' | 'admin' = 'customer') => {
-    const res = await api.register({ name, email, password, role })
-    if (res?.token) {
-      localStorage.setItem('flashstock_token', res.token)
-    }
+  const register = async (name: string, email: string, password: string) => {
+    const res = await api.register({ name, email, password })
     setUser(res.user)
   }
 
@@ -57,7 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.logout()
     } catch (_) {}
-    localStorage.removeItem('flashstock_token')
     setUser(null)
   }
 

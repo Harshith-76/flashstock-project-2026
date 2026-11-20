@@ -25,6 +25,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { api } from '../../services/api'
 import type { FlashSale, Product } from '../../types'
+import { useCart } from '../../context/CartContext'
+import { useAuth } from '../../context/AuthContext'
 
 const demoProducts: Product[] = [
   {
@@ -82,13 +84,13 @@ const categories = [
     image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=900&q=85'
   },
   {
-    name: 'Fashion',
-    detail: 'Everyday, elevated',
-    href: '/products?category=Fashion',
-    image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=85'
+    name: 'Audio',
+    detail: 'Sound for every moment',
+    href: '/products?category=Audio',
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85'
   },
   {
-    name: 'Home & Living',
+    name: 'Furniture',
     detail: 'Make room for good living',
     href: '/products?category=Furniture',
     image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=85'
@@ -99,18 +101,6 @@ const categories = [
     href: '/products?category=Accessories',
     image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85'
   },
-  {
-    name: 'Gaming',
-    detail: 'Level up your downtime',
-    href: '/products?category=Gaming',
-    image: 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&w=900&q=85'
-  },
-  {
-    name: 'Lifestyle',
-    detail: 'Little upgrades, every day',
-    href: '/products?category=Lifestyle',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85'
-  }
 ]
 
 const deals = [
@@ -188,7 +178,20 @@ const SectionHeading: React.FC<{
   </div>
 )
 
-const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, index }) => (
+const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, index }) => {
+  const { addToCart } = useCart()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const add = async () => {
+    if (!user) return navigate('/login')
+    setBusy(true); setMessage('')
+    try { await addToCart(product.id, 1); setMessage('Added to your cart') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not add this item') }
+    finally { setBusy(false) }
+  }
+  return (
   <article className="group overflow-hidden rounded-[1.4rem] border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_50px_-25px_rgba(15,23,42,0.22)]">
     <Link
       to={product.id.startsWith('demo-') ? `/products?search=${encodeURIComponent(product.name)}` : `/products/${product.id}`}
@@ -196,7 +199,7 @@ const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, i
       aria-label={`View ${product.name}`}
     >
       <img
-        src={product.imageUrl || demoProducts[index % demoProducts.length].imageUrl || ''}
+        src={product.imageUrl || ''}
         alt={product.name}
         loading="lazy"
         onError={hideUnavailableImage}
@@ -229,17 +232,21 @@ const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, i
         <span className="text-lg font-bold tracking-tight text-slate-950">{formatPrice(product.price)}</span>
         <button
           type="button"
-          title="Cart action preview"
-          className="inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-orange-600"
+          disabled={busy || product.available <= 0}
+          onClick={add}
+          className="inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
         >
-          <ShoppingBag className="h-3.5 w-3.5" /> Add to Cart
+          <ShoppingBag className="h-3.5 w-3.5" /> {product.available <= 0 ? 'Sold out' : busy ? 'Adding…' : 'Add to Cart'}
         </button>
       </div>
+      {message && <p role="status" className="mt-2 text-xs text-slate-600">{message}</p>}
     </div>
   </article>
-)
+  )
+}
 
 export const LandingPage: React.FC = () => {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
   const [flashSales, setFlashSales] = useState<FlashSale[]>([])
@@ -292,7 +299,7 @@ export const LandingPage: React.FC = () => {
     if (query) navigate(`/products?search=${encodeURIComponent(query)}`)
   }
 
-  const featuredProducts = products.length > 0 ? products.slice(0, 3) : demoProducts
+  const featuredProducts = products.slice(0, 3)
   const liveDeals = flashSales.flatMap((sale) => {
     const product = products.find((item) => item.id === sale.productId)
     if (!product || product.price <= 0) return []
@@ -302,13 +309,11 @@ export const LandingPage: React.FC = () => {
       originalPrice: product.price,
       price: sale.discountPrice,
       discount: `${Math.round(((product.price - sale.discountPrice) / product.price) * 100)}% off`,
-      image: product.imageUrl || demoProducts[0].imageUrl || '',
+      image: product.imageUrl || '',
       key: sale.id
     }]
   })
-  const visibleDeals = liveDeals.length > 0
-    ? liveDeals
-    : deals.map((deal) => ({ ...deal, key: deal.name }))
+  const visibleDeals = liveDeals
 
   return (
     <div id="top" className="min-h-screen overflow-hidden bg-[#fafaf9] text-slate-950">
@@ -323,7 +328,7 @@ export const LandingPage: React.FC = () => {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 text-[13px] font-medium text-slate-600 md:flex" aria-label="Main navigation">
+            <nav className="hidden items-center gap-8 text-[13px] font-medium text-slate-600 lg:flex" aria-label="Main navigation">
             <Link to="/" className="text-slate-950">Home</Link>
             <Link to="/products" className="transition hover:text-orange-700">Shop</Link>
             <a href="#categories" className="inline-flex items-center gap-1 transition hover:text-orange-700">
@@ -352,15 +357,15 @@ export const LandingPage: React.FC = () => {
               <ShoppingBag className="h-[18px] w-[18px]" />
             </Link>
             <Link
-              to="/login"
+              to={user ? '/account' : '/login'}
               className="hidden rounded-full bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-orange-600 sm:inline-flex"
             >
-              Sign in
+              {user ? 'My account' : 'Sign in'}
             </Link>
             <button
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="grid h-10 w-10 place-items-center rounded-full text-slate-800 hover:bg-slate-100 md:hidden"
+              className="grid h-10 w-10 place-items-center rounded-full text-slate-800 hover:bg-slate-100 lg:hidden"
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMenuOpen}
             >
@@ -369,13 +374,13 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
         {isMenuOpen && (
-          <nav className="border-t border-slate-100 bg-white px-5 py-4 shadow-lg md:hidden" aria-label="Mobile navigation">
+          <nav className="border-t border-slate-100 bg-white px-5 py-4 shadow-lg lg:hidden" aria-label="Mobile navigation">
             <div className="mx-auto flex max-w-7xl flex-col gap-1 text-sm font-medium">
               <Link onClick={() => setIsMenuOpen(false)} to="/" className="rounded-xl px-3 py-3 hover:bg-slate-50">Home</Link>
               <Link onClick={() => setIsMenuOpen(false)} to="/products" className="rounded-xl px-3 py-3 hover:bg-slate-50">Shop</Link>
               <a onClick={() => setIsMenuOpen(false)} href="#categories" className="rounded-xl px-3 py-3 hover:bg-slate-50">Categories</a>
               <a onClick={() => setIsMenuOpen(false)} href="#deals" className="rounded-xl px-3 py-3 hover:bg-slate-50">Deals</a>
-              <Link onClick={() => setIsMenuOpen(false)} to="/login" className="rounded-xl px-3 py-3 text-orange-700 hover:bg-orange-50">Sign in</Link>
+              <Link onClick={() => setIsMenuOpen(false)} to={user ? '/account' : '/login'} className="rounded-xl px-3 py-3 text-orange-700 hover:bg-orange-50">{user ? 'My account' : 'Sign in'}</Link>
               <form onSubmit={handleSearch} className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -518,20 +523,16 @@ export const LandingPage: React.FC = () => {
               title="Picked for your everyday."
               description="A few customer favorites and fresh discoveries, all in one place."
             />
-            {featuredProducts === demoProducts && (
-              <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs text-amber-800" role="status">
-                <Check className="h-3.5 w-3.5" /> {hasApiError ? 'Demo picks shown while the live collection reconnects.' : 'Demo picks shown while the live collection is being prepared.'}
-              </p>
-            )}
+            {hasApiError && <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">Some storefront data could not be loaded. Please try again shortly.</p>}
             {isLoading ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3].map((item) => <div key={item} className="aspect-[1.2/1] animate-pulse rounded-[1.4rem] bg-slate-100" />)}
               </div>
-            ) : (
+            ) : featuredProducts.length ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {featuredProducts.map((product, index) => <ProductTile key={product.id} product={product} index={index} />)}
               </div>
-            )}
+            ) : <p className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">No featured products are available yet.</p>}
             <div className="mt-8 flex justify-center">
               <Link to="/products" className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-950 hover:bg-slate-950 hover:text-white">
                 Explore all products <ArrowRight className="h-4 w-4" />
@@ -551,9 +552,7 @@ export const LandingPage: React.FC = () => {
                   </p>
                   <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Flash Deals — Limited Time Offers</h2>
                   <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">A handful of standout finds at prices that won't hang around.</p>
-                  {liveDeals.length === 0 && (
-                    <p className="mt-2 text-xs text-slate-400" role="status">Demo offers shown until live promotions are available.</p>
-                  )}
+                  {hasApiError && <p role="alert" className="mt-2 text-xs text-rose-200">Live offers could not be loaded.</p>}
                 </div>
                 <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-xs font-medium text-slate-200">
                   <Clock3 className="h-4 w-4 text-orange-300" /> This week's picks
@@ -581,6 +580,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                   </article>
                 ))}
+                {!isLoading && visibleDeals.length === 0 && <p className="col-span-full rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-slate-300">There are no active flash sales right now.</p>}
               </div>
               {flashSales.length > 0 && (
                 <p className="mt-5 text-xs text-slate-400">

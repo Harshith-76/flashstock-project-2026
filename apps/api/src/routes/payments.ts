@@ -22,6 +22,14 @@ paymentRoutes.post('/simulate', async (c) => {
       }, 400)
     }
 
+    const user = c.get('user')
+    const order = await c.env.DB.prepare('SELECT user_id FROM orders WHERE id = ?')
+      .bind(validation.data.orderId).first<{ user_id: string }>()
+    if (!order) return c.json({ success: false, message: 'Order not found' }, 404)
+    if (user.role !== 'admin' && order.user_id !== user.id) {
+      return c.json({ success: false, message: 'Access denied' }, 403)
+    }
+
     const paymentService = new PaymentService(c.env.DB)
     const result = await paymentService.simulatePayment({
       orderId: validation.data.orderId,
@@ -48,6 +56,13 @@ paymentRoutes.post('/simulate', async (c) => {
 paymentRoutes.get('/:orderId', async (c) => {
   try {
     const orderId = c.req.param('orderId')
+    const user = c.get('user')
+    const order = await c.env.DB.prepare('SELECT user_id FROM orders WHERE id = ?')
+      .bind(orderId).first<{ user_id: string }>()
+    if (!order) return c.json({ success: false, message: 'Order not found' }, 404)
+    if (user.role !== 'admin' && order.user_id !== user.id) {
+      return c.json({ success: false, message: 'Access denied' }, 403)
+    }
     const paymentService = new PaymentService(c.env.DB)
     const payment = await paymentService.getPaymentByOrderId(orderId)
 

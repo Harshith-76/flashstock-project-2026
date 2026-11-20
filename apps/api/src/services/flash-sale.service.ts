@@ -21,8 +21,8 @@ export class FlashSaleService {
       FROM flash_sales fs
       JOIN products p ON p.id = fs.product_id
       WHERE fs.status = 'active'
-        AND fs.start_time <= datetime('now')
-        AND fs.end_time >= datetime('now')
+        AND datetime(fs.start_time) <= datetime('now')
+        AND datetime(fs.end_time) >= datetime('now')
         AND p.status = 'active'
       ORDER BY fs.created_at DESC
     `).all<FlashSale>()

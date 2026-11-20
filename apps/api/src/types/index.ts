@@ -83,6 +83,7 @@ export interface Order {
   userId: string
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'payment_failed'
   totalAmount: number
+  shippingAddress?: string | null
   createdAt: string
   updatedAt: string
   items?: OrderItem[]

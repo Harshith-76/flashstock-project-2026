@@ -5,6 +5,7 @@ import { ProductService } from '../src/services/product.service'
 import { AuthService } from '../src/services/auth.service'
 import { CartService } from '../src/services/cart.service'
 import { CheckoutService } from '../src/services/checkout.service'
+import { PaymentService } from '../src/services/payment.service'
 
 describe('Checkout and Idempotency Suite', () => {
   let adapter: SqliteD1Adapter
@@ -41,13 +42,16 @@ describe('Checkout and Idempotency Suite', () => {
     const res = await checkoutService.processCheckout({
       userId,
       idempotencyKey: 'IDEMP-KEY-001',
-      items: [{ productId: prod.id, quantity: 2 }]
+      items: [{ productId: prod.id, quantity: 2 }],
+      shippingAddress: { fullName: 'Checkout User', addressLine1: '12 Test Road', city: 'Bengaluru', state: 'Karnataka', postalCode: '560001', country: 'India' }
     })
 
     assert.ok(res.order.id)
     assert.equal(res.order.totalAmount, 99900 * 2)
     assert.ok(res.reservation.id)
     assert.equal(res.isDuplicate, undefined)
+    const savedAddress = adapter.db.prepare('SELECT shipping_address FROM orders WHERE id = ?').get(res.order.id) as any
+    assert.equal(JSON.parse(savedAddress.shipping_address).postalCode, '560001')
   })
 
   test('Idempotency: Replaying checkout with same idempotency key returns existing result without duplicate reservations', async () => {
@@ -123,7 +127,7 @@ describe('Checkout and Idempotency Suite', () => {
     )
   })
 
-  test('Cart checkout converts cart and clears cart items', async () => {
+  test('Cart checkout keeps items until payment succeeds, then converts the cart', async () => {
     const prod = await productService.createProduct({
       name: 'Gaming Headset',
       sku: 'FS-HS-001',
@@ -143,8 +147,23 @@ describe('Checkout and Idempotency Suite', () => {
 
     assert.ok(res.order.id)
 
-    // Verify cart was cleared
-    const updatedCart = await cartService.getCart(userId)
-    assert.equal(updatedCart.items.length, 0)
+    // A reservation alone must not discard the customer's cart.
+    const heldItems = adapter.db.prepare('SELECT COUNT(*) AS count FROM cart_items WHERE cart_id = ?').get(cart.id) as any
+    assert.equal(heldItems.count, 1)
+    const beforePayment = adapter.db.prepare('SELECT status FROM carts WHERE id = ?').get(cart.id) as any
+    assert.equal(beforePayment.status, 'active')
+
+    await new PaymentService(adapter as any).simulatePayment({ orderId: res.order.id, outcome: 'success' })
+    const updatedCart = adapter.db.prepare('SELECT status FROM carts WHERE id = ?').get(cart.id) as any
+    assert.equal(updatedCart.status, 'converted')
+    const clearedItems = adapter.db.prepare('SELECT COUNT(*) AS count FROM cart_items WHERE cart_id = ?').get(cart.id) as any
+    assert.equal(clearedItems.count, 0)
+  })
+
+  test('Clear cart removes every item by cart ID', async () => {
+    const prod = await productService.createProduct({ name: 'Desk Stand', sku: 'FS-STN-002', price: 12000, initialStock: 3 })
+    await cartService.addItem(userId, prod.id, 2)
+    await cartService.clearCart(userId)
+    assert.equal((await cartService.getCart(userId)).items.length, 0)
   })
 })

@@ -95,13 +95,29 @@ export class CheckoutService {
       }
     }
 
+    // A cart checkout may only reserve the exact contents that currently
+    // belong to that active cart. The client sends this snapshot so the
+    // idempotency hash also changes if the customer edits the cart.
+    if (cartId && items) {
+      const cart = await this.cartService.getCart(userId, cartId)
+      const cartContents = cart.items.map(({ productId, quantity }) => ({ productId, quantity }))
+        .sort((a, b) => a.productId.localeCompare(b.productId))
+      const requestedContents = items.map(({ productId, quantity }) => ({ productId, quantity }))
+        .sort((a, b) => a.productId.localeCompare(b.productId))
+      if (JSON.stringify(cartContents) !== JSON.stringify(requestedContents)) {
+        const err = new Error('Cart contents changed. Refresh the cart and try again.')
+        ;(err as any).statusCode = 409
+        throw err
+      }
+    }
+
     // Step 2: Determine items to reserve
     let checkoutItems: CheckoutItemInput[] = []
 
     if (items && items.length > 0) {
       checkoutItems = items
     } else if (cartId) {
-      const cart = await this.cartService.getCart(userId)
+      const cart = await this.cartService.getCart(userId, cartId)
       if (!cart.items || cart.items.length === 0) {
         const err = new Error('Shopping cart is empty')
         ;(err as any).statusCode = 400
@@ -124,19 +140,10 @@ export class CheckoutService {
       userId,
       items: checkoutItems,
       idempotencyKey,
-      requestHash
+      requestHash,
+      cartId,
+      shippingAddress
     })
-
-    // Step 4: If checking out from cart, convert cart status
-    if (cartId) {
-      await this.db.prepare(`
-        UPDATE carts
-        SET status = 'converted', updated_at = datetime('now')
-        WHERE id = ? AND user_id = ?
-      `).bind(cartId, userId).run()
-
-      await this.cartService.clearCart(userId)
-    }
 
     return result
   }
