@@ -20,6 +20,54 @@ export class CheckoutService {
     this.cartService = new CartService(db)
   }
 
+  private async getCachedCheckout(userId: string, idempotencyKey: string, requestHash: string) {
+    const existingKey = await this.db.prepare(`
+      SELECT request_hash, response_body
+      FROM idempotency_keys
+      WHERE user_id = ? AND idempotency_key = ?
+    `).bind(userId, idempotencyKey).first<{ request_hash: string; response_body: string | null }>()
+
+    if (!existingKey) return null
+    if (existingKey.request_hash !== requestHash) {
+      const err = new Error('Conflict: Idempotency key already used with a different request payload')
+      ;(err as any).statusCode = 409
+      throw err
+    }
+    if (!existingKey.response_body) return null
+
+    try {
+      const cached = JSON.parse(existingKey.response_body)
+      const [order, reservation] = await Promise.all([
+        this.db.prepare('SELECT * FROM orders WHERE id = ?').bind(cached.orderId).first<any>(),
+        this.db.prepare('SELECT * FROM reservations WHERE id = ?').bind(cached.reservationId).first<any>()
+      ])
+      if (!order || !reservation) return null
+      return {
+        order: {
+          id: order.id,
+          orderNumber: order.order_number,
+          userId: order.user_id,
+          status: order.status,
+          totalAmount: order.total_amount,
+          shippingAddress: order.shipping_address,
+          createdAt: order.created_at,
+          updatedAt: order.updated_at
+        },
+        reservation: {
+          id: reservation.id,
+          orderId: reservation.order_id,
+          status: reservation.status,
+          expiresAt: reservation.expires_at,
+          createdAt: reservation.created_at
+        },
+        isDuplicate: true
+      }
+    } catch (error) {
+      console.error('Failed to parse cached idempotency response:', error)
+      return null
+    }
+  }
+
   async processCheckout(params: {
     userId: string
     idempotencyKey: string
@@ -38,62 +86,8 @@ export class CheckoutService {
 
     const requestHash = await computeHash(normalizedPayload)
 
-    const existingKey = await this.db.prepare(`
-      SELECT request_hash, response_status, response_body
-      FROM idempotency_keys
-      WHERE user_id = ? AND idempotency_key = ?
-    `).bind(userId, idempotencyKey).first<{
-      request_hash: string
-      response_status: number
-      response_body: string
-    }>()
-
-    if (existingKey) {
-      if (existingKey.request_hash !== requestHash) {
-        const err = new Error('Conflict: Idempotency key already used with a different request payload')
-        ;(err as any).statusCode = 409
-        throw err
-      }
-
-      // Return cached response
-      if (existingKey.response_body) {
-        try {
-          const cached = JSON.parse(existingKey.response_body)
-          // Fetch order to return latest state
-          const order = await this.db.prepare(
-            'SELECT * FROM orders WHERE id = ?'
-          ).bind(cached.orderId).first<any>()
-
-          const reservation = await this.db.prepare(
-            'SELECT * FROM reservations WHERE id = ?'
-          ).bind(cached.reservationId).first<any>()
-
-          if (order && reservation) {
-            return {
-              order: {
-                id: order.id,
-                orderNumber: order.order_number,
-                userId: order.user_id,
-                status: order.status,
-                totalAmount: order.total_amount,
-                createdAt: order.created_at,
-                updatedAt: order.updated_at
-              },
-              reservation: {
-                id: reservation.id,
-                orderId: reservation.order_id,
-                status: reservation.status,
-                expiresAt: reservation.expires_at,
-                createdAt: reservation.created_at
-              },
-              isDuplicate: true
-            }
-          }
-        } catch (e) {
-          console.error('Failed to parse cached idempotency body:', e)
-        }
-      }
-    }
+    const cachedCheckout = await this.getCachedCheckout(userId, idempotencyKey, requestHash)
+    if (cachedCheckout) return cachedCheckout
 
     // A cart checkout may only reserve the exact contents that currently
     // belong to that active cart. The client sends this snapshot so the
@@ -136,15 +130,24 @@ export class CheckoutService {
     }
 
     // Step 3: Execute atomic reservation
-    const result = await this.reservationService.createReservation({
-      userId,
-      items: checkoutItems,
-      idempotencyKey,
-      requestHash,
-      cartId,
-      shippingAddress
-    })
-
-    return result
+    try {
+      return await this.reservationService.createReservation({
+        userId,
+        items: checkoutItems,
+        idempotencyKey,
+        requestHash,
+        cartId,
+        shippingAddress
+      })
+    } catch (error) {
+      // Concurrent identical requests can both pass the initial read. The
+      // unique idempotency row rolls one reservation batch back; return the
+      // winner's committed order instead of surfacing a spurious 409.
+      if ((error as any)?.statusCode === 409) {
+        const concurrentReplay = await this.getCachedCheckout(userId, idempotencyKey, requestHash)
+        if (concurrentReplay) return concurrentReplay
+      }
+      throw error
+    }
   }
 }

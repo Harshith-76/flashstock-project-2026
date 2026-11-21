@@ -3,6 +3,7 @@ import { AnalyticsService } from '../services/analytics.service'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const analyticsRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -21,7 +22,7 @@ analyticsRoutes.get('/overview', async (c) => {
     console.error('Analytics overview error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch analytics'
+      message: publicErrorMessage(error, 'Unable to fetch analytics')
     }, 500)
   }
 })

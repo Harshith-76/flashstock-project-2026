@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
 import { ReservationService } from '../services/reservation.service'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const orderRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -63,7 +64,7 @@ orderRoutes.get('/', async (c) => {
     console.error('Get orders error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch orders'
+      message: publicErrorMessage(error, 'Unable to fetch orders')
     }, 500)
   }
 })
@@ -148,7 +149,7 @@ orderRoutes.get('/:id', async (c) => {
     console.error('Get order by id error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch order'
+      message: publicErrorMessage(error, 'Unable to fetch order')
     }, 500)
   }
 })
@@ -204,7 +205,7 @@ orderRoutes.patch('/:id/status', adminMiddleware, async (c) => {
     console.error('Update order status error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to update status'
+      message: publicErrorMessage(error, 'Unable to update status')
     }, 500)
   }
 })

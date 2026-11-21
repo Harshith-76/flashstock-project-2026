@@ -166,4 +166,27 @@ describe('Checkout and Idempotency Suite', () => {
     await cartService.clearCart(userId)
     assert.equal((await cartService.getCart(userId)).items.length, 0)
   })
+
+  test('Concurrent identical checkout requests return the same order', async () => {
+    const prod = await productService.createProduct({
+      name: 'Concurrent Idempotency Item',
+      sku: 'FS-IDEMP-003',
+      price: 3200,
+      initialStock: 10
+    })
+    const payload = {
+      userId,
+      idempotencyKey: 'IDEMP-CONCURRENT-001',
+      items: [{ productId: prod.id, quantity: 2 }]
+    }
+
+    const results = await Promise.all(Array.from({ length: 8 }, () => checkoutService.processCheckout(payload)))
+
+    assert.equal(new Set(results.map(result => result.order.id)).size, 1)
+    assert.equal(results.filter(result => result.isDuplicate).length, 7)
+    const orderCount = adapter.db.prepare('SELECT COUNT(*) AS count FROM orders').get() as any
+    assert.equal(orderCount.count, 1)
+    const inv = adapter.db.prepare('SELECT reserved FROM inventory WHERE product_id = ?').get(prod.id) as any
+    assert.equal(inv.reserved, 2)
+  })
 })

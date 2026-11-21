@@ -177,8 +177,9 @@ export const CheckoutPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="block text-gray-400 mb-1">Full Name</label>
+                  <label htmlFor="checkout-full-name" className="block text-gray-400 mb-1">Full Name</label>
                   <input
+                    id="checkout-full-name"
                     type="text"
                     required
                     value={shippingAddress.fullName}
@@ -187,8 +188,9 @@ export const CheckoutPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-1">Country</label>
+                  <label htmlFor="checkout-country" className="block text-gray-400 mb-1">Country</label>
                   <input
+                    id="checkout-country"
                     type="text"
                     disabled
                     value={shippingAddress.country}
@@ -196,8 +198,9 @@ export const CheckoutPage: React.FC = () => {
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-gray-400 mb-1">Street Address</label>
+                  <label htmlFor="checkout-address" className="block text-gray-400 mb-1">Street Address</label>
                   <input
+                    id="checkout-address"
                     type="text"
                     required
                     value={shippingAddress.addressLine1}
@@ -206,8 +209,9 @@ export const CheckoutPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-1">City</label>
+                  <label htmlFor="checkout-city" className="block text-gray-400 mb-1">City</label>
                   <input
+                    id="checkout-city"
                     type="text"
                     required
                     value={shippingAddress.city}
@@ -216,8 +220,9 @@ export const CheckoutPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-1">State</label>
+                  <label htmlFor="checkout-state" className="block text-gray-400 mb-1">State</label>
                   <input
+                    id="checkout-state"
                     type="text"
                     required
                     value={shippingAddress.state}
@@ -226,8 +231,9 @@ export const CheckoutPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-1">Postal Code</label>
+                  <label htmlFor="checkout-postal-code" className="block text-gray-400 mb-1">Postal Code</label>
                   <input
+                    id="checkout-postal-code"
                     type="text"
                     required
                     value={shippingAddress.postalCode}

@@ -3,6 +3,7 @@ import { PaymentService } from '../services/payment.service'
 import { simulatePaymentSchema } from '../validators/payments'
 import { authMiddleware } from '../middleware/auth'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const paymentRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -47,7 +48,7 @@ paymentRoutes.post('/simulate', async (c) => {
     console.error('Payment simulation error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Payment simulation failed'
+      message: publicErrorMessage(error, 'Payment simulation failed')
     }, error.statusCode || 500)
   }
 })
@@ -81,7 +82,7 @@ paymentRoutes.get('/:orderId', async (c) => {
     console.error('Get payment error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch payment'
+      message: publicErrorMessage(error, 'Unable to fetch payment')
     }, 500)
   }
 })

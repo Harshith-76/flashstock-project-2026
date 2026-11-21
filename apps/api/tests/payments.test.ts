@@ -155,4 +155,58 @@ describe('Payment Simulation Suite', () => {
     assert.equal(inv.on_hand, 4)
     assert.equal(inv.reserved, 0)
   })
+
+  test('Concurrent successful callbacks deduct stock and write movements only once', async () => {
+    const prod = await productService.createProduct({
+      name: 'Concurrent Callback Item',
+      sku: 'FS-CALLBACK-001',
+      price: 2000,
+      initialStock: 5
+    })
+    const { order } = await reservationService.createReservation({
+      userId,
+      items: [{ productId: prod.id, quantity: 2 }]
+    })
+
+    const results = await Promise.all(Array.from({ length: 8 }, () => paymentService.simulatePayment({
+      orderId: order.id,
+      outcome: 'success'
+    })))
+
+    assert.ok(results.every(result => result.payment.status === 'succeeded'))
+    const inv = adapter.db.prepare('SELECT on_hand, reserved FROM inventory WHERE product_id = ?').get(prod.id) as any
+    assert.equal(inv.on_hand, 3)
+    assert.equal(inv.reserved, 0)
+    const movements = adapter.db.prepare("SELECT COUNT(*) AS count FROM inventory_movements WHERE product_id = ? AND reference_id = ? AND movement_type = 'stock_sold'").get(prod.id, order.id) as any
+    assert.equal(movements.count, 1)
+    const payments = adapter.db.prepare('SELECT COUNT(*) AS count FROM payments WHERE order_id = ?').get(order.id) as any
+    assert.equal(payments.count, 1)
+  })
+
+  test('Concurrent failed callbacks release stock and write movements only once', async () => {
+    const prod = await productService.createProduct({
+      name: 'Concurrent Failure Item',
+      sku: 'FS-CALLBACK-002',
+      price: 2000,
+      initialStock: 5
+    })
+    const { order } = await reservationService.createReservation({
+      userId,
+      items: [{ productId: prod.id, quantity: 2 }]
+    })
+
+    const results = await Promise.all(Array.from({ length: 8 }, () => paymentService.simulatePayment({
+      orderId: order.id,
+      outcome: 'failure'
+    })))
+
+    assert.ok(results.every(result => result.payment.status === 'failed'))
+    const inv = adapter.db.prepare('SELECT on_hand, reserved FROM inventory WHERE product_id = ?').get(prod.id) as any
+    assert.equal(inv.on_hand, 5)
+    assert.equal(inv.reserved, 0)
+    const movements = adapter.db.prepare("SELECT COUNT(*) AS count FROM inventory_movements WHERE product_id = ? AND reference_id = ? AND movement_type = 'reservation_released'").get(prod.id, order.id) as any
+    assert.equal(movements.count, 1)
+    const payments = adapter.db.prepare('SELECT COUNT(*) AS count FROM payments WHERE order_id = ?').get(order.id) as any
+    assert.equal(payments.count, 1)
+  })
 })

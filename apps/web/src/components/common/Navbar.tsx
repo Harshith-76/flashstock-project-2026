@@ -15,7 +15,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 
 export const Navbar: React.FC = () => {
-  const { user, isAdmin, logout, loginAsDemo } = useAuth()
+  const { user, isAdmin, logout } = useAuth()
   const { itemCount, openDrawer } = useCart()
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')

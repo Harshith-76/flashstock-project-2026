@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const adminRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -34,7 +35,7 @@ adminRoutes.get('/customers', async (c) => {
     console.error('Get customers error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch customers'
+      message: publicErrorMessage(error, 'Unable to fetch customers')
     }, 500)
   }
 })
@@ -147,7 +148,7 @@ adminRoutes.post('/seed-demo-data', async (c) => {
     console.error('Seed demo data error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Seed demo data failed'
+      message: publicErrorMessage(error, 'Seed demo data failed')
     }, 500)
   }
 })

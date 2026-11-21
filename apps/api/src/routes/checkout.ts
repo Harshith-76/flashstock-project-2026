@@ -3,6 +3,7 @@ import { CheckoutService } from '../services/checkout.service'
 import { checkoutSchema } from '../validators/checkout'
 import { authMiddleware } from '../middleware/auth'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const checkoutRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -45,7 +46,7 @@ checkoutRoutes.post('/', async (c) => {
     console.error('Checkout error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Checkout failed'
+      message: publicErrorMessage(error, 'Checkout failed')
     }, error.statusCode || 500)
   }
 })

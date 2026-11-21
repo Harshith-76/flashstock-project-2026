@@ -9,7 +9,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  loginAsDemo: (role: 'customer' | 'admin') => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -54,14 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null)
   }
 
-  const loginAsDemo = async (role: 'customer' | 'admin') => {
-    if (role === 'admin') {
-      await login('admin@flashstock.dev', 'admin123')
-    } else {
-      await login('customer@flashstock.dev', 'customer123')
-    }
-  }
-
   return (
     <AuthContext.Provider
       value={{
@@ -70,8 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin: user?.role === 'admin',
         login,
         register,
-        logout,
-        loginAsDemo
+        logout
       }}
     >
       {children}

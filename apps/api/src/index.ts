@@ -22,7 +22,15 @@ const app = new Hono<{ Bindings: Env; Variables: { user: User; session: Session 
 app.use(
   '*',
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: (origin, c) => {
+      const configured = (c.env as Env & { CORS_ALLOWED_ORIGINS?: string }).CORS_ALLOWED_ORIGINS || ''
+      const allowedOrigins = new Set([
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        ...configured.split(',').map((value) => value.trim()).filter(Boolean)
+      ])
+      return origin && allowedOrigins.has(origin) ? origin : null
+    },
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key']

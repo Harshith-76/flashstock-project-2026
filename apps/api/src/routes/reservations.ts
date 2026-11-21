@@ -3,6 +3,7 @@ import { ReservationService } from '../services/reservation.service'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const reservationRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -21,7 +22,7 @@ reservationRoutes.post('/sweep-expired', authMiddleware, adminMiddleware, async 
     console.error('Reservation sweep error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Failed to sweep expired reservations'
+      message: publicErrorMessage(error, 'Failed to sweep expired reservations')
     }, 500)
   }
 })
@@ -81,7 +82,7 @@ reservationRoutes.get('/:orderId', authMiddleware, async (c) => {
     console.error('Get reservation error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch reservation'
+      message: publicErrorMessage(error, 'Unable to fetch reservation')
     }, 500)
   }
 })

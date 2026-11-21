@@ -3,6 +3,7 @@ import { CartService } from '../services/cart.service'
 import { addToCartSchema, updateCartItemSchema } from '../validators/cart'
 import { authMiddleware } from '../middleware/auth'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const cartRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -24,7 +25,7 @@ cartRoutes.get('/', async (c) => {
     console.error('Get cart error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch cart'
+      message: publicErrorMessage(error, 'Unable to fetch cart')
     }, 500)
   }
 })
@@ -56,7 +57,7 @@ cartRoutes.post('/items', async (c) => {
     console.error('Add to cart error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to add item to cart'
+      message: publicErrorMessage(error, 'Unable to add item to cart')
     }, error.statusCode || 500)
   }
 })
@@ -89,7 +90,7 @@ cartRoutes.patch('/items/:id', async (c) => {
     console.error('Update cart item error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to update cart item'
+      message: publicErrorMessage(error, 'Unable to update cart item')
     }, error.statusCode || 500)
   }
 })
@@ -112,7 +113,7 @@ cartRoutes.delete('/items/:id', async (c) => {
     console.error('Remove cart item error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to remove item'
+      message: publicErrorMessage(error, 'Unable to remove item')
     }, error.statusCode || 500)
   }
 })
@@ -132,7 +133,7 @@ cartRoutes.delete('/', async (c) => {
     console.error('Clear cart error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to clear cart'
+      message: publicErrorMessage(error, 'Unable to clear cart')
     }, 500)
   }
 })

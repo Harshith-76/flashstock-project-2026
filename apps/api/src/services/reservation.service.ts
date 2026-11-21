@@ -354,15 +354,17 @@ export class ReservationService {
       this.db.prepare(`
         UPDATE reservations
         SET status = 'confirmed'
-        WHERE id = ? AND status = 'active'
+        WHERE id = ? AND status = 'active' AND datetime(expires_at) > datetime('now')
       `).bind(reservation.id),
 
       // 2: Update order status to confirmed
       this.db.prepare(`
         UPDATE orders
         SET status = 'confirmed', updated_at = ?
-        WHERE id = ?
-      `).bind(now, orderId)
+        WHERE id = ? AND EXISTS (
+          SELECT 1 FROM reservations WHERE id = ? AND status = 'confirmed'
+        )
+      `).bind(now, orderId, reservation.id)
     ]
 
     // 3: Deduct sold stock and release reserved stock
@@ -372,19 +374,41 @@ export class ReservationService {
           UPDATE inventory
           SET on_hand = on_hand - ?, reserved = reserved - ?
           WHERE product_id = ?
-        `).bind(item.quantity, item.quantity, item.product_id)
+            AND EXISTS (SELECT 1 FROM reservations WHERE id = ? AND status = 'confirmed')
+            AND NOT EXISTS (
+              SELECT 1 FROM inventory_movements
+              WHERE product_id = ? AND reference_id = ? AND movement_type = 'stock_sold'
+            )
+        `).bind(item.quantity, item.quantity, item.product_id, reservation.id, item.product_id, orderId)
       )
 
       statements.push(
         this.db.prepare(`
           INSERT INTO inventory_movements (id, product_id, movement_type, quantity, reference_id, notes, created_at)
-          VALUES (?, ?, 'stock_sold', ?, ?, 'Stock deducted on confirmed payment', ?)
-        `).bind(crypto.randomUUID(), item.product_id, item.quantity, orderId, now)
+          SELECT ?, ?, 'stock_sold', ?, ?, 'Stock deducted on confirmed payment', ?
+          WHERE NOT EXISTS (
+            SELECT 1 FROM inventory_movements
+            WHERE product_id = ? AND reference_id = ? AND movement_type = 'stock_sold'
+          )
+        `).bind(crypto.randomUUID(), item.product_id, item.quantity, orderId, now, item.product_id, orderId)
       )
     }
 
     const results = await this.db.batch(statements)
-    return results[0].meta.changes === 1
+    if (results[0].meta.changes === 1) return true
+
+    // A concurrent success callback may have confirmed the same reservation.
+    // Treat that as success; a release/expiry that won the race must not be paid.
+    const latest = await this.db.prepare('SELECT status, expires_at FROM reservations WHERE id = ?')
+      .bind(reservation.id).first<{ status: string; expires_at: string }>()
+    if (latest?.status === 'confirmed') return true
+    if (latest?.status === 'active' && new Date(latest.expires_at) <= new Date()) {
+      await this.releaseReservation(orderId, 'expired')
+      const err = new Error('Reservation has expired. Stock has been released.')
+      ;(err as any).statusCode = 410
+      throw err
+    }
+    return false
   }
 
   /**
@@ -430,8 +454,10 @@ export class ReservationService {
       this.db.prepare(`
         UPDATE orders
         SET status = ?, updated_at = ?
-        WHERE id = ?
-      `).bind(finalOrderStatus, now, orderId)
+        WHERE id = ? AND EXISTS (
+          SELECT 1 FROM reservations WHERE id = ? AND status = ?
+        )
+      `).bind(finalOrderStatus, now, orderId, reservation.id, finalReservationStatus)
     ]
 
     for (const item of items.results) {
@@ -440,33 +466,51 @@ export class ReservationService {
           UPDATE inventory
           SET reserved = reserved - ?
           WHERE product_id = ?
-        `).bind(item.quantity, item.product_id)
+            AND EXISTS (SELECT 1 FROM reservations WHERE id = ? AND status = ?)
+            AND NOT EXISTS (
+              SELECT 1 FROM inventory_movements
+              WHERE product_id = ? AND reference_id = ? AND movement_type = 'reservation_released'
+            )
+        `).bind(item.quantity, item.product_id, reservation.id, finalReservationStatus, item.product_id, orderId)
       )
 
       if (item.flash_sale_id) {
         statements.push(this.db.prepare(`
           UPDATE flash_sales SET allocated_stock = allocated_stock - ?
           WHERE id = ? AND allocated_stock >= ?
-        `).bind(item.quantity, item.flash_sale_id, item.quantity))
+            AND NOT EXISTS (
+              SELECT 1 FROM inventory_movements
+              WHERE product_id = ? AND reference_id = ? AND movement_type = 'reservation_released'
+            )
+        `).bind(item.quantity, item.flash_sale_id, item.quantity, item.product_id, orderId))
       }
 
       statements.push(
         this.db.prepare(`
           INSERT INTO inventory_movements (id, product_id, movement_type, quantity, reference_id, notes, created_at)
-          VALUES (?, ?, 'reservation_released', ?, ?, ?, ?)
+          SELECT ?, ?, 'reservation_released', ?, ?, ?, ?
+          WHERE NOT EXISTS (
+            SELECT 1 FROM inventory_movements
+            WHERE product_id = ? AND reference_id = ? AND movement_type = 'reservation_released'
+          )
         `).bind(
           crypto.randomUUID(),
           item.product_id,
           item.quantity,
           orderId,
           `Stock released due to ${reason}`,
-          now
+          now,
+          item.product_id,
+          orderId
         )
       )
     }
 
     const results = await this.db.batch(statements)
-    return results[0].meta.changes === 1
+    if (results[0].meta.changes === 1) return true
+    const latest = await this.db.prepare('SELECT status FROM reservations WHERE id = ?')
+      .bind(reservation.id).first<{ status: string }>()
+    return latest?.status === finalReservationStatus
   }
 
   /**

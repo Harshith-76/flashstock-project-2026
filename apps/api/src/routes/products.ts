@@ -4,6 +4,7 @@ import { createProductSchema, updateProductSchema } from '../validators/products
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const productRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -98,7 +99,7 @@ productRoutes.post('/', authMiddleware, adminMiddleware, async (c) => {
     console.error('Product creation failed:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to create product'
+      message: publicErrorMessage(error, 'Unable to create product')
     }, error.statusCode || 500)
   }
 })
@@ -133,7 +134,7 @@ productRoutes.patch('/:id', authMiddleware, adminMiddleware, async (c) => {
     console.error('Update product error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to update product'
+      message: publicErrorMessage(error, 'Unable to update product')
     }, error.statusCode || 500)
   }
 })
@@ -156,7 +157,7 @@ productRoutes.delete('/:id', authMiddleware, adminMiddleware, async (c) => {
     console.error('Archive product error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to archive product'
+      message: publicErrorMessage(error, 'Unable to archive product')
     }, error.statusCode || 500)
   }
 })

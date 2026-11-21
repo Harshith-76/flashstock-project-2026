@@ -5,6 +5,7 @@ import { registerSchema, loginSchema } from '../validators/auth'
 import { authMiddleware, SESSION_COOKIE_NAME, extractBearerToken } from '../middleware/auth'
 import { rateLimiter } from '../middleware/rate-limiter'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const authRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -44,7 +45,7 @@ authRoutes.post('/register', authRateLimit, async (c) => {
     console.error('Registration failed:', error)
     return c.json({
       success: false,
-      message: error.message || 'Registration failed'
+      message: publicErrorMessage(error, 'Registration failed')
     }, error.statusCode || 500)
   }
 })
@@ -82,7 +83,7 @@ authRoutes.post('/login', authRateLimit, async (c) => {
     console.error('Login failed:', error)
     return c.json({
       success: false,
-      message: error.message || 'Login failed'
+      message: publicErrorMessage(error, 'Login failed')
     }, error.statusCode || 500)
   }
 })

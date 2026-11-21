@@ -4,6 +4,7 @@ import { createFlashSaleSchema, updateFlashSaleSchema } from '../validators/flas
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const flashSaleRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -42,7 +43,7 @@ flashSaleRoutes.get('/', authMiddleware, adminMiddleware, async (c) => {
     console.error('Get all flash sales error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to fetch flash sales'
+      message: publicErrorMessage(error, 'Unable to fetch flash sales')
     }, 500)
   }
 })
@@ -73,7 +74,7 @@ flashSaleRoutes.post('/', authMiddleware, adminMiddleware, async (c) => {
     console.error('Create flash sale error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to create flash sale'
+      message: publicErrorMessage(error, 'Unable to create flash sale')
     }, error.statusCode || 500)
   }
 })
@@ -108,7 +109,7 @@ flashSaleRoutes.patch('/:id', authMiddleware, adminMiddleware, async (c) => {
     console.error('Update flash sale error:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to update flash sale'
+      message: publicErrorMessage(error, 'Unable to update flash sale')
     }, error.statusCode || 500)
   }
 })

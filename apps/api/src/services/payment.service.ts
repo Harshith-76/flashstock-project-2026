@@ -83,9 +83,14 @@ export class PaymentService {
     if (outcome === 'success') {
       if (isExpired) {
         // Late payment after expiration must be rejected!
-        await this.reservationService.releaseReservation(orderId, 'expired')
+        const released = await this.reservationService.releaseReservation(orderId, 'expired')
+        const latestStatus = await this.getReservationStatus(orderId)
+        if (!released && latestStatus === 'confirmed') {
+          const payment = await this.finalizeSuccessfulPayment(orderId, paymentId, order.total_amount, ref, now)
+          return { payment, orderStatus: 'confirmed', message: 'Payment was already confirmed successfully.' }
+        }
 
-        await this.savePaymentRecord(paymentId, orderId, 'failed', order.total_amount, ref, now, !!existingPayment)
+        await this.savePaymentRecord(paymentId, orderId, 'failed', order.total_amount, ref, now)
 
         const err = new Error('Payment rejected: Reservation expired before payment completion. Stock has been released.')
         ;(err as any).statusCode = 410
@@ -93,37 +98,34 @@ export class PaymentService {
       }
 
       // Confirm reservation & deduct stock
-      await this.reservationService.confirmReservation(orderId)
-
-      const sourceCart = await this.db.prepare('SELECT cart_id FROM order_carts WHERE order_id = ?')
-        .bind(orderId).first<{ cart_id: string }>()
-      if (sourceCart) {
-        await this.db.batch([
-          this.db.prepare('DELETE FROM cart_items WHERE cart_id = ?').bind(sourceCart.cart_id),
-          this.db.prepare("UPDATE carts SET status = 'converted', updated_at = ? WHERE id = ? AND status = 'active'")
-            .bind(now, sourceCart.cart_id)
-        ])
+      const confirmed = await this.reservationService.confirmReservation(orderId)
+      if (!confirmed) {
+        const latestStatus = await this.getReservationStatus(orderId)
+        const err = new Error(latestStatus === 'expired'
+          ? 'Reservation has expired. Stock has been released.'
+          : 'Reservation is no longer available for payment.')
+        ;(err as any).statusCode = latestStatus === 'expired' ? 410 : 409
+        throw err
       }
 
-      await this.savePaymentRecord(paymentId, orderId, 'succeeded', order.total_amount, ref, now, !!existingPayment)
+      const payment = await this.finalizeSuccessfulPayment(orderId, paymentId, order.total_amount, ref, now)
 
       return {
         payment: {
-          id: paymentId,
-          orderId,
-          status: 'succeeded',
-          amount: order.total_amount,
-          providerReference: ref,
-          createdAt: now,
-          updatedAt: now
+          ...payment,
+          orderId
         },
         orderStatus: 'confirmed',
         message: 'Payment completed successfully. Stock deducted and order confirmed.'
       }
     } else if (outcome === 'expired' || outcome === 'timeout' || isExpired) {
-      await this.reservationService.releaseReservation(orderId, 'expired')
+      const released = await this.reservationService.releaseReservation(orderId, 'expired')
+      if (!released && await this.getReservationStatus(orderId) === 'confirmed') {
+        const payment = await this.finalizeSuccessfulPayment(orderId, paymentId, order.total_amount, ref, now)
+        return { payment, orderStatus: 'confirmed', message: 'Payment was already confirmed successfully.' }
+      }
 
-      await this.savePaymentRecord(paymentId, orderId, 'failed', order.total_amount, ref, now, !!existingPayment)
+      await this.savePaymentRecord(paymentId, orderId, 'failed', order.total_amount, ref, now)
 
       return {
         payment: {
@@ -140,9 +142,13 @@ export class PaymentService {
       }
     } else {
       // Payment failure
-      await this.reservationService.releaseReservation(orderId, 'payment_failed')
+      const released = await this.reservationService.releaseReservation(orderId, 'payment_failed')
+      if (!released && await this.getReservationStatus(orderId) === 'confirmed') {
+        const payment = await this.finalizeSuccessfulPayment(orderId, paymentId, order.total_amount, ref, now)
+        return { payment, orderStatus: 'confirmed', message: 'Payment was already confirmed successfully.' }
+      }
 
-      await this.savePaymentRecord(paymentId, orderId, 'failed', order.total_amount, ref, now, !!existingPayment)
+      await this.savePaymentRecord(paymentId, orderId, 'failed', order.total_amount, ref, now)
 
       return {
         payment: {
@@ -160,27 +166,57 @@ export class PaymentService {
     }
   }
 
+  private async getReservationStatus(orderId: string): Promise<string | null> {
+    const reservation = await this.db.prepare('SELECT status FROM reservations WHERE order_id = ?')
+      .bind(orderId).first<{ status: string }>()
+    return reservation?.status || null
+  }
+
+  private async finalizeSuccessfulPayment(
+    orderId: string,
+    paymentId: string,
+    amount: number,
+    providerRef: string,
+    now: string
+  ): Promise<Payment> {
+    const sourceCart = await this.db.prepare('SELECT cart_id FROM order_carts WHERE order_id = ?')
+      .bind(orderId).first<{ cart_id: string }>()
+    if (sourceCart) {
+      await this.db.batch([
+        this.db.prepare('DELETE FROM cart_items WHERE cart_id = ?').bind(sourceCart.cart_id),
+        this.db.prepare("UPDATE carts SET status = 'converted', updated_at = ? WHERE id = ? AND status = 'active'")
+          .bind(now, sourceCart.cart_id)
+      ])
+    }
+    const payment = await this.savePaymentRecord(paymentId, orderId, 'succeeded', amount, providerRef, now)
+    if (!payment) throw new Error('Payment state could not be saved')
+    return payment
+  }
+
   private async savePaymentRecord(
     id: string,
     orderId: string,
     status: string,
     amount: number,
     providerRef: string,
-    now: string,
-    isUpdate: boolean
-  ) {
-    if (isUpdate) {
+    now: string
+  ): Promise<Payment | null> {
+    const existing = await this.db.prepare('SELECT id, status FROM payments WHERE order_id = ?')
+      .bind(orderId).first<{ id: string; status: string }>()
+    if (existing) {
       await this.db.prepare(`
         UPDATE payments
         SET status = ?, provider_reference = ?, updated_at = ?
-        WHERE id = ?
-      `).bind(status, providerRef, now, id).run()
+        WHERE id = ? AND status != 'succeeded'
+      `).bind(status, providerRef, now, existing.id).run()
     } else {
       await this.db.prepare(`
         INSERT INTO payments (id, order_id, status, amount, provider_reference, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(id, orderId, status, amount, providerRef, now, now).run()
+        SELECT ?, ?, ?, ?, ?, ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM payments WHERE order_id = ?)
+      `).bind(id, orderId, status, amount, providerRef, now, now, orderId).run()
     }
+    return this.getPaymentByOrderId(orderId)
   }
 
   async getPaymentByOrderId(orderId: string): Promise<Payment | null> {

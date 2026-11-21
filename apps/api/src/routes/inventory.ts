@@ -4,6 +4,7 @@ import { updateInventorySchema } from '../validators/products'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { User, Session } from '../types'
+import { publicErrorMessage } from '../middleware/public-error'
 
 const inventoryRoutes = new Hono<{ Bindings: Env; Variables: { user: User; session: Session } }>()
 
@@ -25,7 +26,7 @@ inventoryRoutes.get('/', async (c) => {
     console.error('Get inventory failed:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to retrieve inventory'
+      message: publicErrorMessage(error, 'Unable to retrieve inventory')
     }, 500)
   }
 })
@@ -48,7 +49,7 @@ inventoryRoutes.get('/movements', async (c) => {
     console.error('Get movements failed:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to retrieve inventory movements'
+      message: publicErrorMessage(error, 'Unable to retrieve inventory movements')
     }, 500)
   }
 })
@@ -80,7 +81,7 @@ inventoryRoutes.patch('/:productId', async (c) => {
     console.error('Adjust inventory failed:', error)
     return c.json({
       success: false,
-      message: error.message || 'Unable to update inventory'
+      message: publicErrorMessage(error, 'Unable to update inventory')
     }, error.statusCode || 500)
   }
 })
