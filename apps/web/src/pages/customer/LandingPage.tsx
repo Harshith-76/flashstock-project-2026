@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
-  Star,
   Truck,
   X,
   Zap
@@ -27,54 +26,6 @@ import { api } from '../../services/api'
 import type { FlashSale, Product } from '../../types'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
-
-const demoProducts: Product[] = [
-  {
-    id: 'demo-mechanical-keyboard',
-    name: 'Mechanical Keyboard',
-    description: 'A tactile, thoughtfully engineered keyboard made for your everyday setup.',
-    sku: 'FS-KB-001',
-    price: 499900,
-    category: 'Electronics',
-    imageUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=900&q=85',
-    status: 'active',
-    createdAt: '',
-    updatedAt: '',
-    onHand: 12,
-    reserved: 0,
-    available: 12
-  },
-  {
-    id: 'demo-wireless-headphones',
-    name: 'Studio Wireless Headphones',
-    description: 'Immersive sound and all-day comfort, wherever you go.',
-    sku: 'FS-AU-024',
-    price: 749900,
-    category: 'Audio',
-    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',
-    status: 'active',
-    createdAt: '',
-    updatedAt: '',
-    onHand: 18,
-    reserved: 0,
-    available: 18
-  },
-  {
-    id: 'demo-smart-watch',
-    name: 'Everyday Smartwatch',
-    description: 'A refined companion for a more connected, balanced day.',
-    sku: 'FS-WT-017',
-    price: 899900,
-    category: 'Accessories',
-    imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85',
-    status: 'active',
-    createdAt: '',
-    updatedAt: '',
-    onHand: 9,
-    reserved: 0,
-    available: 9
-  }
-]
 
 const categories = [
   {
@@ -101,33 +52,6 @@ const categories = [
     href: '/products?category=Accessories',
     image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85'
   },
-]
-
-const deals = [
-  {
-    name: 'Studio Wireless Headphones',
-    category: 'Audio',
-    originalPrice: 749900,
-    price: 549900,
-    discount: '27% off',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85'
-  },
-  {
-    name: 'Everyday Smartwatch',
-    category: 'Accessories',
-    originalPrice: 899900,
-    price: 699900,
-    discount: '22% off',
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85'
-  },
-  {
-    name: 'Wireless Gaming Controller',
-    category: 'Gaming',
-    originalPrice: 499900,
-    price: 379900,
-    discount: '24% off',
-    image: 'https://images.unsplash.com/photo-1592840496694-26d035b52b48?auto=format&fit=crop&w=900&q=85'
-  }
 ]
 
 const benefits: { icon: LucideIcon; title: string; description: string }[] = [
@@ -194,7 +118,7 @@ const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, i
   return (
   <article className="group overflow-hidden rounded-[1.4rem] border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_50px_-25px_rgba(15,23,42,0.22)]">
     <Link
-      to={product.id.startsWith('demo-') ? `/products?search=${encodeURIComponent(product.name)}` : `/products/${product.id}`}
+      to={`/products/${product.id}`}
       className="relative block aspect-[1.16/1] overflow-hidden bg-slate-100"
       aria-label={`View ${product.name}`}
     >
@@ -214,15 +138,9 @@ const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, i
     <div className="p-5">
       <div className="mb-2 flex items-center justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{product.category || 'Curated pick'}</p>
-        <div className="flex items-center gap-1 text-amber-500" aria-label="Five star visual rating">
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-        </div>
+        <span className="text-xs text-slate-500">{product.available > 0 ? `${product.available} available` : 'Sold out'}</span>
       </div>
-      <Link to={product.id.startsWith('demo-') ? '/products' : `/products/${product.id}`}>
+      <Link to={`/products/${product.id}`}>
         <h3 className="truncate text-base font-semibold text-slate-900 transition group-hover:text-orange-700">{product.name}</h3>
       </Link>
       <p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-500">
@@ -304,6 +222,7 @@ export const LandingPage: React.FC = () => {
     const product = products.find((item) => item.id === sale.productId)
     if (!product || product.price <= 0) return []
     return [{
+      productId: product.id,
       name: product.name,
       category: product.category || 'Featured',
       originalPrice: product.price,
@@ -561,7 +480,7 @@ export const LandingPage: React.FC = () => {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {visibleDeals.map((deal) => (
                   <article key={deal.key} className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur transition hover:border-orange-300/50 hover:bg-white/[0.09]">
-                    <Link to={`/products?category=${encodeURIComponent(deal.category)}`} className="relative block aspect-[1.7/1] overflow-hidden bg-slate-800">
+                    <Link to={`/products/${deal.productId}`} className="relative block aspect-[1.7/1] overflow-hidden bg-slate-800">
                       <img src={deal.image} alt={deal.name} loading="lazy" onError={hideUnavailableImage} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                       <span className="absolute left-3 top-3 rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white">{deal.discount}</span>
                     </Link>
@@ -573,7 +492,7 @@ export const LandingPage: React.FC = () => {
                           <span className="text-lg font-bold">{formatPrice(deal.price)}</span>
                           <span className="text-xs text-slate-400 line-through">{formatPrice(deal.originalPrice)}</span>
                         </div>
-                        <Link to={`/products?category=${encodeURIComponent(deal.category)}`} aria-label={`Explore ${deal.category} deals`} className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-orange-500">
+                        <Link to={`/products/${deal.productId}`} aria-label={`View ${deal.name}`} className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-orange-500">
                           <ArrowUpRight className="h-4 w-4" />
                         </Link>
                       </div>

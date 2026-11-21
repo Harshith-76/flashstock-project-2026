@@ -16,6 +16,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickBuy })
   const { user } = useAuth()
   const navigate = useNavigate()
   const [isAdding, setIsAdding] = useState(false)
+  const [addError, setAddError] = useState('')
 
   const isFlashSale = !!product.flashSale && product.flashSale.status === 'active'
   const finalPrice = isFlashSale ? product.flashSale!.discountPrice : product.price
@@ -40,10 +41,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickBuy })
       return
     }
     setIsAdding(true)
+    setAddError('')
     try {
       await addToCart(product.id, 1)
     } catch (err: any) {
-      alert(err.message || 'Failed to add item to cart')
+      setAddError(err.message || 'Failed to add item to cart')
     } finally {
       setIsAdding(false)
     }
@@ -130,6 +132,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickBuy })
               <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
             </Link>
           </div>
+          {addError && <p role="alert" className="mt-2 text-xs text-rose-300">{addError}</p>}
         </div>
       </div>
     </div>

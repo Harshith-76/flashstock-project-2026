@@ -29,6 +29,7 @@ export const ProductDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [loadError, setLoadError] = useState('')
+  const [cartError, setCartError] = useState('')
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -106,10 +107,11 @@ export const ProductDetailPage: React.FC = () => {
       return
     }
     setIsSubmitting(true)
+    setCartError('')
     try {
       await addToCart(product.id, quantity)
     } catch (err: any) {
-      alert(err.message || 'Failed to add item to cart')
+      setCartError(err.message || 'Failed to add item to cart')
     } finally {
       setIsSubmitting(false)
     }
@@ -286,6 +288,7 @@ export const ProductDetailPage: React.FC = () => {
                 Buy Now (Instant Reserve)
               </button>
             </div>
+            {cartError && <p role="alert" className="rounded-xl border border-rose-900 bg-rose-950/40 p-3 text-sm text-rose-200">{cartError}</p>}
           </div>
 
           {/* Checkout details */}

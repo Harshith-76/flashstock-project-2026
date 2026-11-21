@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { CartPage } from './pages/customer/CartPage'
 import { CheckoutPage } from './pages/customer/CheckoutPage'
+import { PaymentPage } from './pages/customer/PaymentPage'
 import { LandingPage } from './pages/customer/LandingPage'
 import { OrderConfirmationPage } from './pages/customer/OrderConfirmationPage'
 import { ProductDetailPage } from './pages/customer/ProductDetailPage'
@@ -51,6 +52,7 @@ const App: React.FC = () => (
             <Route element={<RequireAuth />}>
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/payment/:id" element={<PaymentPage />} />
               <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/account/orders" element={<OrderHistoryPage />} />

@@ -91,7 +91,7 @@ export const api = {
     request(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   // Payments
-  simulatePayment: (payload: { orderId: string; outcome?: 'success' | 'failure' | 'timeout' | 'expired'; providerReference?: string }) =>
+  simulatePayment: (payload: { orderId: string; outcome?: 'success' | 'failure' | 'timeout' | 'expired' | 'processing'; providerReference?: string }) =>
     request('/payments/simulate', { method: 'POST', body: JSON.stringify(payload) }),
   getPaymentByOrderId: (orderId: string) => request(`/payments/${orderId}`),
 

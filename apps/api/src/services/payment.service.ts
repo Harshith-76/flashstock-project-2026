@@ -10,7 +10,7 @@ export class PaymentService {
 
   async simulatePayment(params: {
     orderId: string
-    outcome?: 'success' | 'failure' | 'timeout' | 'expired'
+    outcome?: 'success' | 'failure' | 'timeout' | 'expired' | 'processing'
     providerReference?: string
   }): Promise<{ payment: Payment; orderStatus: string; message: string }> {
     const { orderId, outcome = 'success', providerReference } = params
@@ -80,7 +80,15 @@ export class PaymentService {
     const now = new Date().toISOString()
 
     // 3. Handle scenarios
-    if (outcome === 'success') {
+    if (outcome === 'processing' && !isExpired) {
+      const payment = await this.savePaymentRecord(paymentId, orderId, 'pending', order.total_amount, ref, now)
+      if (!payment) throw new Error('Payment state could not be saved')
+      return {
+        payment,
+        orderStatus: order.status,
+        message: 'Payment is processing. The reservation remains active while the result is pending.'
+      }
+    } else if (outcome === 'success') {
       if (isExpired) {
         // Late payment after expiration must be rejected!
         const released = await this.reservationService.releaseReservation(orderId, 'expired')

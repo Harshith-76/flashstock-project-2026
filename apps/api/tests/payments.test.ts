@@ -57,6 +57,34 @@ describe('Payment Simulation Suite', () => {
     assert.equal(inv.available, 8)
   })
 
+  test('Processing payment remains pending with stock held until a final outcome arrives', async () => {
+    const prod = await productService.createProduct({
+      name: 'Processing Test Monitor',
+      sku: 'FS-PROC-001',
+      price: 199900,
+      initialStock: 5
+    })
+    const { order } = await reservationService.createReservation({
+      userId,
+      items: [{ productId: prod.id, quantity: 2 }]
+    })
+
+    const pending = await paymentService.simulatePayment({ orderId: order.id, outcome: 'processing' })
+    assert.equal(pending.payment.status, 'pending')
+    assert.equal(pending.orderStatus, 'pending')
+    assert.match(pending.message, /processing/i)
+    let inv = adapter.db.prepare('SELECT on_hand, reserved FROM inventory WHERE product_id = ?').get(prod.id) as any
+    assert.equal(inv.on_hand, 5)
+    assert.equal(inv.reserved, 2)
+
+    const completed = await paymentService.simulatePayment({ orderId: order.id, outcome: 'success' })
+    assert.equal(completed.payment.id, pending.payment.id)
+    assert.equal(completed.payment.status, 'succeeded')
+    inv = adapter.db.prepare('SELECT on_hand, reserved FROM inventory WHERE product_id = ?').get(prod.id) as any
+    assert.equal(inv.on_hand, 3)
+    assert.equal(inv.reserved, 0)
+  })
+
   test('Failed payment releases reserved stock back to available inventory', async () => {
     const prod = await productService.createProduct({
       name: 'Microphone',
