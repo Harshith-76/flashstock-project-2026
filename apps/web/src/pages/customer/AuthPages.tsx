@@ -12,6 +12,16 @@ const AuthFrame: React.FC<{ title: string; children: React.ReactNode }> = ({ tit
   </main>
 )
 
+const postLoginDestination = (role: string, requestedPath?: string) => {
+  const safePath = requestedPath && requestedPath.startsWith('/') && !requestedPath.startsWith('//')
+    ? requestedPath
+    : undefined
+  if (role.toLowerCase() === 'admin') {
+    return safePath?.startsWith('/admin') ? safePath : '/admin'
+  }
+  return safePath || '/account'
+}
+
 export const LoginPage: React.FC = () => {
   const { user, isLoading: isChecking, login } = useAuth()
   const navigate = useNavigate()
@@ -20,14 +30,17 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const from = (location.state as { from?: string } | null)?.from || '/account'
+  const from = (location.state as { from?: string } | null)?.from
 
   if (isChecking) return <AuthFrame title="Sign in"><p className="text-sm text-gray-400">Checking your session…</p></AuthFrame>
-  if (user) return <Navigate to={from} replace />
+  if (user) return <Navigate to={postLoginDestination(user.role, from)} replace />
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError('')
-    try { await login(email, password); navigate(from, { replace: true }) }
+    try {
+      const authenticatedUser = await login(email, password)
+      navigate(postLoginDestination(authenticatedUser.role, from), { replace: true })
+    }
     catch (err) { setError(err instanceof Error ? err.message : 'Unable to sign in') }
     finally { setBusy(false) }
   }

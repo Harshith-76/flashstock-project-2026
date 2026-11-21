@@ -97,10 +97,12 @@ export const Navbar: React.FC = () => {
             {isAdmin && (
               <Link
                 to="/admin"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
+                aria-label="Open admin dashboard"
+                className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
               >
                 <Shield className="w-3.5 h-3.5" />
-                Admin Panel
+                <span className="hidden sm:inline">Admin Panel</span>
+                <span className="sm:hidden">Admin</span>
               </Link>
             )}
 

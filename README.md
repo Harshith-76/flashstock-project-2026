@@ -6,8 +6,7 @@ FlashStock is a full-stack e-commerce and inventory management platform designed
 
 Its primary engineering challenge is preventing **overselling during concurrent purchase attempts** — ensuring that multiple customers cannot successfully purchase limited-stock products beyond the available quantity.
 
-> **Project Status:** 🚧 Under Development  
-> **Development Progress:** Day 04
+> **Project Status:** Local application implemented; Cloudflare deployment preparation in progress.
 
 ---
 
@@ -38,7 +37,7 @@ The objective is to build a practical, production-style application demonstratin
 | Frontend | React, TypeScript, Vite |
 | Styling | Tailwind CSS |
 | Backend | Hono, TypeScript |
-| Runtime | Cloudflare Workers |
+| Runtime and static hosting | Cloudflare Workers Static Assets |
 | Database | Cloudflare D1 (SQLite) |
 | ORM | Drizzle ORM |
 | Validation | Zod |
@@ -53,20 +52,17 @@ The objective is to build a practical, production-style application demonstratin
 FlashStock follows a modular monolith architecture.
 
 ```text
-                 CUSTOMER
-                    |
-                    v
-             REACT FRONTEND
-            React + TypeScript
-                    |
-                    | HTTPS / REST API
-                    |
-                    v
-            CLOUDFLARE WORKERS
-                    |
-                    v
-                  HONO
-               API ROUTES
+             CUSTOMER
+                |
+                v
+       REACT + VITE FRONTEND
+          Static assets
+                |
+        Same-origin /api/v1
+                |
+                v
+       CLOUDFLARE WORKER
+         Hono API + assets
                     |
                     v
            APPLICATION SERVICES
@@ -368,6 +364,8 @@ npx wrangler d1 migrations apply flashstock-db --local --config apps/api/wrangle
 npm run dev:api
 ```
 
+The local API script explicitly sets `ENVIRONMENT=development`, enabling the localhost origins used by the Vite proxy. Deployed Worker configuration defaults to `ENVIRONMENT=production`.
+
 The migration command above is local-only. Review migrations before applying them to any remote database.
 
 The local API will be available at:
@@ -391,6 +389,17 @@ http://localhost:3000
 ```
 
 > **Database Note:** Local D1 development data is separate from the remote Cloudflare D1 database. Use the existing Wrangler configuration and migrations carefully. Never recreate the existing database or apply remote migrations without reviewing them first.
+
+### Cloudflare deployment preparation
+
+The API Worker serves the Vite production build from Workers Static Assets. `/api` requests are routed to Hono first; other missing assets use the SPA fallback for React Router refreshes. The existing `flashstock-db` D1 binding is preserved. Build before running Wrangler:
+
+```bash
+npm --prefix apps/web run build
+npx wrangler deploy --config apps/api/wrangler.jsonc
+```
+
+Review [Cloudflare deployment instructions](docs/CLOUDFLARE_DEPLOYMENT.md) before deploying, especially the remote D1 migration history procedure. This project uses simulated payments and does not integrate a real payment gateway.
 
 ---
 
@@ -529,6 +538,7 @@ Development progress is maintained in the `docs/` directory.
 - [Day 2 — Backend Development & Frontend Foundation](docs/FLASHSTOCK_DAY_02.md)
 - [Day 3 — Frontend Application Bootstrap & Landing Page](docs/FLASHSTOCK_DAY_03.md)
 - [Day 4 — Customer and Admin Integration](docs/FLASHSTOCK_DAY_04.md)
+- [Cloudflare deployment guide](docs/CLOUDFLARE_DEPLOYMENT.md)
 
 ---
 

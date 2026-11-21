@@ -26,6 +26,7 @@ import { api } from '../../services/api'
 import type { FlashSale, Product } from '../../types'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
+import { ProductImage } from '../../components/common/ProductImage'
 
 const categories = [
   {
@@ -122,13 +123,7 @@ const ProductTile: React.FC<{ product: Product; index: number }> = ({ product, i
       className="relative block aspect-[1.16/1] overflow-hidden bg-slate-100"
       aria-label={`View ${product.name}`}
     >
-      <img
-        src={product.imageUrl || ''}
-        alt={product.name}
-        loading="lazy"
-        onError={hideUnavailableImage}
-        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-      />
+      <ProductImage src={product.imageUrl} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
       {index === 0 && (
         <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 shadow-sm backdrop-blur">
           Best pick
@@ -275,6 +270,7 @@ export const LandingPage: React.FC = () => {
             >
               <ShoppingBag className="h-[18px] w-[18px]" />
             </Link>
+            {user?.role === 'admin' && <Link to="/admin" className="hidden rounded-full border border-orange-200 px-4 py-2.5 text-xs font-semibold text-orange-800 transition hover:bg-orange-50 sm:inline-flex">Admin dashboard</Link>}
             <Link
               to={user ? '/account' : '/login'}
               className="hidden rounded-full bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-orange-600 sm:inline-flex"
@@ -299,6 +295,7 @@ export const LandingPage: React.FC = () => {
               <Link onClick={() => setIsMenuOpen(false)} to="/products" className="rounded-xl px-3 py-3 hover:bg-slate-50">Shop</Link>
               <a onClick={() => setIsMenuOpen(false)} href="#categories" className="rounded-xl px-3 py-3 hover:bg-slate-50">Categories</a>
               <a onClick={() => setIsMenuOpen(false)} href="#deals" className="rounded-xl px-3 py-3 hover:bg-slate-50">Deals</a>
+              {user?.role === 'admin' && <Link onClick={() => setIsMenuOpen(false)} to="/admin" className="rounded-xl px-3 py-3 font-semibold text-orange-700 hover:bg-orange-50">Admin dashboard</Link>}
               <Link onClick={() => setIsMenuOpen(false)} to={user ? '/account' : '/login'} className="rounded-xl px-3 py-3 text-orange-700 hover:bg-orange-50">{user ? 'My account' : 'Sign in'}</Link>
               <form onSubmit={handleSearch} className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -481,7 +478,7 @@ export const LandingPage: React.FC = () => {
                 {visibleDeals.map((deal) => (
                   <article key={deal.key} className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur transition hover:border-orange-300/50 hover:bg-white/[0.09]">
                     <Link to={`/products/${deal.productId}`} className="relative block aspect-[1.7/1] overflow-hidden bg-slate-800">
-                      <img src={deal.image} alt={deal.name} loading="lazy" onError={hideUnavailableImage} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                      <ProductImage src={deal.image} alt={deal.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                       <span className="absolute left-3 top-3 rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white">{deal.discount}</span>
                     </Link>
                     <div className="p-4">

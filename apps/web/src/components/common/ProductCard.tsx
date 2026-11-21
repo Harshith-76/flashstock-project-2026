@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Zap, ArrowRight } from 'lucide-react'
 import { Product } from '../../types'
 import { StockBadge } from './StockBadge'
+import { ProductImage } from './ProductImage'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 
@@ -66,18 +67,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickBuy })
 
       {/* Image container */}
       <Link to={`/products/${product.id}`} className="relative block aspect-[4/3] bg-dark-950 overflow-hidden">
-        {product.imageUrl ? (
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-dark-900 text-gray-600">
-            <ShoppingBag className="w-12 h-12 stroke-[1.2]" />
-          </div>
-        )}
+        <ProductImage
+          src={product.imageUrl}
+          alt={product.name}
+          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0D1322] via-transparent to-transparent opacity-80" />
       </Link>
 

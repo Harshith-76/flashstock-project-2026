@@ -42,6 +42,12 @@ adminRoutes.get('/customers', async (c) => {
 
 // SEED REALISTIC SAMPLE DATA (Preserves existing data, only inserts if missing)
 adminRoutes.post('/seed-demo-data', async (c) => {
+  // Demo data is only available in explicitly marked local development.
+  // Keep this endpoint unavailable in deployed/unknown environments.
+  if ((c.env as Env & { ENVIRONMENT?: string }).ENVIRONMENT?.toLowerCase() !== 'development') {
+    return c.json({ success: false, message: 'Not found' }, 404)
+  }
+
   try {
     const sampleProducts = [
       {

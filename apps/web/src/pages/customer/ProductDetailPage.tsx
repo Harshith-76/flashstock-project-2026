@@ -15,6 +15,7 @@ import { api } from '../../services/api'
 import { Product } from '../../types'
 import { StockBadge } from '../../components/common/StockBadge'
 import { FlashSaleTicker } from '../../components/common/FlashSaleTicker'
+import { ProductImage } from '../../components/common/ProductImage'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 
@@ -150,17 +151,11 @@ export const ProductDetailPage: React.FC = () => {
         {/* Product Image Showcase */}
         <div className="space-y-4">
           <div className="aspect-[4/3] sm:aspect-square rounded-3xl bg-[#0B0F19] border border-[#1A253D] overflow-hidden relative shadow-2xl">
-            {product.imageUrl ? (
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full h-full object-cover object-center"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-600 bg-dark-900">
-                <ShoppingBag className="w-20 h-20 stroke-[1]" />
-              </div>
-            )}
+            <ProductImage
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover object-center"
+            />
             <div className="absolute top-4 left-4 flex gap-2">
               <StockBadge available={product.available} />
               {isFlashSale && (

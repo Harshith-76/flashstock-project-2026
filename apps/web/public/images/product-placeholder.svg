@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" role="img" aria-labelledby="title desc">
+  <title id="title">Product image unavailable</title>
+  <desc id="desc">A simple chair illustration on a soft neutral background.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#e8edf2"/>
+    </linearGradient>
+    <linearGradient id="seat" x1="0" y1="0" x2="0.9" y2="1">
+      <stop stop-color="#64748b"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="720" fill="url(#bg)"/>
+  <circle cx="760" cy="140" r="170" fill="#fff" opacity=".45"/>
+  <g fill="none" stroke="#475569" stroke-linecap="round" stroke-linejoin="round" stroke-width="22">
+    <path d="M360 180h240l48 225H330z" fill="#dbe3eb"/>
+    <path d="M330 405h360l55 72c12 16 1 39-20 39H319c-20 0-31-22-19-39z" fill="url(#seat)" stroke="#334155"/>
+    <path d="M365 515l-36 112m310-112 42 112M311 627h400M330 460l-88 36m473-36 97 36"/>
+    <path d="M411 250h137M394 315h171M377 377h205" stroke="#94a3b8" stroke-width="12"/>
+  </g>
+  <text x="480" y="682" fill="#64748b" font-family="Arial,sans-serif" font-size="24" text-anchor="middle">Product photo coming soon</text>
+</svg>

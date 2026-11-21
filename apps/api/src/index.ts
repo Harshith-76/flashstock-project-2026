@@ -23,12 +23,17 @@ app.use(
   '*',
   cors({
     origin: (origin, c) => {
-      const configured = (c.env as Env & { CORS_ALLOWED_ORIGINS?: string }).CORS_ALLOWED_ORIGINS || ''
-      const allowedOrigins = new Set([
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        ...configured.split(',').map((value) => value.trim()).filter(Boolean)
-      ])
+      const runtimeEnv = c.env as Env & { ENVIRONMENT?: string; CORS_ALLOWED_ORIGINS?: string }
+      const configured = runtimeEnv.CORS_ALLOWED_ORIGINS || ''
+      const allowedOrigins = new Set(configured.split(',').map((value) => value.trim()).filter(Boolean))
+
+      // Local origins are enabled only by the explicit Wrangler dev command.
+      // A missing or unknown environment is treated as production-safe.
+      if (runtimeEnv.ENVIRONMENT?.toLowerCase() === 'development') {
+        allowedOrigins.add('http://localhost:3000')
+        allowedOrigins.add('http://127.0.0.1:3000')
+      }
+
       return origin && allowedOrigins.has(origin) ? origin : null
     },
     credentials: true,
